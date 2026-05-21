@@ -851,6 +851,106 @@
       return lines;
     }
 
+    function parseSymbolicWorldProgram(clauses) {
+      const rooms = new Set();
+      const paths = [];
+      const pathSeen = new Set();
+      const keyRooms = new Set();
+      const lockedRooms = new Set();
+
+      clauses.forEach((clause) => {
+        if (clause.head.type !== "compound" || clause.body.length > 0) {
+          return;
+        }
+
+        if (clause.head.functor === "room" && clause.head.args.length === 1) {
+          rooms.add(termToString(clause.head.args[0]));
+          return;
+        }
+
+        if (clause.head.functor === "path" && clause.head.args.length === 2) {
+          const from = termToString(clause.head.args[0]);
+          const to = termToString(clause.head.args[1]);
+          const key = edgeKey(from, to);
+          if (!pathSeen.has(key)) {
+            pathSeen.add(key);
+            paths.push({ from, to });
+          }
+          rooms.add(from);
+          rooms.add(to);
+          return;
+        }
+
+        if (clause.head.functor === "has_key" && clause.head.args.length === 1) {
+          const room = termToString(clause.head.args[0]);
+          keyRooms.add(room);
+          rooms.add(room);
+          return;
+        }
+
+        if (clause.head.functor === "locked" && clause.head.args.length === 1) {
+          const room = termToString(clause.head.args[0]);
+          lockedRooms.add(room);
+          rooms.add(room);
+        }
+      });
+
+      return {
+        rooms: Array.from(rooms),
+        paths,
+        keyRooms,
+        lockedRooms,
+      };
+    }
+
+    function hasSymbolicWorldFacts(world) {
+      return world.rooms.length > 0 || world.paths.length > 0 || world.keyRooms.size > 0 || world.lockedRooms.size > 0;
+    }
+
+    function buildSymbolicWorldResult(query, world, success) {
+      const queryRoom = query.args[0] ? termToString(query.args[0]) : null;
+      const keyRoom = world.keyRooms.values().next().value || null;
+      const isLocked = queryRoom ? world.lockedRooms.has(queryRoom) : false;
+      const steps = [];
+
+      if (!success) {
+        steps.push(`You cannot enter the ${queryRoom}.`);
+      } else if (queryRoom && isLocked && keyRoom) {
+        steps.push(`You can enter the ${queryRoom} because the ${keyRoom} has a key.`);
+        steps.push(`The key unlocks the ${queryRoom}.`);
+      } else if (queryRoom && isLocked) {
+        steps.push(`You can enter the ${queryRoom} because a key rule allows it.`);
+      } else if (queryRoom) {
+        steps.push(`You can enter the ${queryRoom} because it is not locked.`);
+      }
+
+      return {
+        steps,
+        visual: {
+          query: termToString(query),
+          world: {
+            rooms: world.rooms.map((name) => ({
+              name,
+              hasKey: world.keyRooms.has(name),
+              locked: world.lockedRooms.has(name),
+            })),
+            paths: world.paths,
+          },
+          before: {
+            nodes: world.rooms,
+            edges: world.paths,
+          },
+          after: {
+            nodes: world.rooms,
+            edges: world.paths,
+          },
+          addedEdges: [],
+          unlockedByKeyRooms: success && queryRoom && isLocked ? [queryRoom] : [],
+          compression: null,
+        },
+      };
+    }
+
     function gcdBigInt(left, right) {
       let a = left < 0n ? -left : left;
       let b = right < 0n ? -right : right;
@@ -1593,6 +1693,23 @@
           return localSolutions;
         }
 
+        if (currentGoal.type === "compound" && currentGoal.functor === "not" && currentGoal.args.length === 1) {
+          const negatedGoal = substitute(currentGoal.args[0], bindings);
+          const negatedSolutions = prove([negatedGoal], bindings, [], depth + 1);
+          if (!negatedSolutions.length) {
+            const stepText = `Check ${currentGoalText}: ${termToString(negatedGoal)} does not happen, so ${currentGoalText} works.`;
+            const childSolutions = prove(remainingGoals, bindings, steps.concat(stepText), depth + 1);
+            childSolutions.forEach((solution) => {
+              localSolutions.push({
+                bindings: solution.bindings,
+                steps: solution.steps,
+                tree: { goal: stepText, children: [solution.tree] },
+              });
+            });
+          }
+          return localSolutions;
+        }
+
         clauses.forEach((clause) => {
           if (
             clause.head.type !== "compound" ||
@@ -1689,20 +1806,37 @@
         }
       }
 
+      let stage7World = null;
+      const stage7Steps = [];
+      if (
+        query.type === "compound" &&
+        query.functor === "can_enter" &&
+        query.args.length === 1 &&
+        (query.args[0].type === "atom" || query.args[0].type === "number")
+      ) {
+        const symbolicWorld = parseSymbolicWorldProgram(clauses);
+        if (hasSymbolicWorldFacts(symbolicWorld)) {
+          stage7World = buildSymbolicWorldResult(query, symbolicWorld, uniqueSolutions.length > 0);
+          stage7Steps.push(...stage7World.steps);
+        }
+      }
+
       return {
         query: termToString(query),
         success: uniqueSolutions.length > 0,
         answer,
         solutions: uniqueSolutions.map((solution) => solution.bindings),
-        steps: firstSolution ? firstSolution.steps.concat(stage2Steps) : fallbackSteps,
+        steps: firstSolution ? firstSolution.steps.concat(stage2Steps, stage7Steps) : fallbackSteps,
         visual: {
-          type: "tree",
-          data: {
-            query: termToString(query),
-            proofTrees: uniqueSolutions.map((solution) => solution.tree),
-            solutions: uniqueSolutions.map((solution) => solution.bindings),
-            compression: stage2Compression,
-          },
+          type: stage7World ? "graph" : "tree",
+          data: stage7World
+            ? stage7World.visual
+            : {
+                query: termToString(query),
+                proofTrees: uniqueSolutions.map((solution) => solution.tree),
+                solutions: uniqueSolutions.map((solution) => solution.bindings),
+                compression: stage2Compression,
+              },
         },
       };
     }

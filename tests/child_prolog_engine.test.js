@@ -159,3 +159,30 @@ biggest([X|Rest], Biggest) :-
   }]);
   assert.equal(result.visual.data.specification, "Find the biggest number in a list.");
 });
+
+test("runs stage 7 symbolic world query for can_enter(tower)", () => {
+  const engine = createEngine();
+  const stage7Program = `room(garden).
+room(cave).
+room(tower).
+path(garden,cave).
+path(cave,tower).
+has_key(garden).
+locked(tower).
+can_enter(Room) :-
+  room(Room),
+  not(locked(Room)).
+can_enter(tower) :-
+  has_key(garden).`;
+
+  const result = engine.resolve(stage7Program, "can_enter(tower).");
+
+  assert.equal(result.success, true);
+  assert.equal(result.answer, "can_enter(tower) is true.");
+  assert.equal(result.visual.type, "graph");
+  assert.match(result.steps.join(" "), /You can enter the tower because the garden has a key\./);
+  assert.match(result.steps.join(" "), /The key unlocks the tower\./);
+  assert.deepEqual(result.visual.data.unlockedByKeyRooms, ["tower"]);
+  assert.ok(result.visual.data.before.edges.some((edge) => edge.from === "garden" && edge.to === "cave"));
+  assert.ok(result.visual.data.before.edges.some((edge) => edge.from === "cave" && edge.to === "tower"));
+});
