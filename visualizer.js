@@ -107,8 +107,37 @@
     container.appendChild(addedList);
   }
 
-  function renderCompression(container, compression) {
+  function renderCompression(container, visualData) {
     container.innerHTML = "";
+    const compression = visualData?.compression;
+    const generatedProgram = visualData?.generatedProgram;
+    const sampleTrace = visualData?.sampleTrace;
+
+    if (generatedProgram) {
+      const heading = document.createElement("div");
+      heading.textContent = "Generated child Prolog:";
+      container.appendChild(heading);
+
+      const programBlock = document.createElement("pre");
+      programBlock.textContent = generatedProgram;
+      container.appendChild(programBlock);
+
+      if (sampleTrace?.comparisons?.length) {
+        const traceHeading = document.createElement("div");
+        traceHeading.textContent = `Sample trace for [${sampleTrace.list.join(", ")}]:`;
+        container.appendChild(traceHeading);
+
+        const traceList = document.createElement("ul");
+        sampleTrace.comparisons.forEach((line) => {
+          const item = document.createElement("li");
+          item.textContent = line;
+          traceList.appendChild(item);
+        });
+        container.appendChild(traceList);
+      }
+
+      return;
+    }
 
     if (!compression) {
       container.textContent = "No compression pattern for this query.";
@@ -176,7 +205,7 @@
       renderTree(elements.tree, result.visual);
     }
     if (elements.compression) {
-      renderCompression(elements.compression, result.visual?.data?.compression);
+      renderCompression(elements.compression, result.visual?.data);
     }
     elements.raw.textContent = JSON.stringify(result, null, 2);
   }

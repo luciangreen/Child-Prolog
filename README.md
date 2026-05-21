@@ -1,6 +1,6 @@
 # Child-Prolog
 
-Stage 5 now includes graph transformations on top of Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
+Stage 6 now includes spec-to-algorithm generation on top of Stage 5 graph transformations, Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
 
 ## Features
 
@@ -13,6 +13,7 @@ Stage 5 now includes graph transformations on top of Stage 4 formula discovery, 
 - stage-3 CFG generation using grammar rules like `sentence --> noun_phrase, verb_phrase.`
 - stage-4 formula discovery with `discover_formula([1,4,9,16,25],F).`
 - stage-5 graph transformations with `apply(connect_grandparent).`
+- stage-6 spec-to-algorithm generation from plain-language specs like `Find the biggest number in a list.`
 - JSON output shaped for visualization panels
 
 ## Run in the browser
@@ -70,6 +71,18 @@ rule(connect_grandparent) :-
   edge(Y,Z),
   add_edge(X,Z).
 query: apply(connect_grandparent).
+```
+
+Stage 6 spec-to-algorithm query examples:
+
+```text
+query: Find the biggest number in a list.
+```
+
+or
+
+```prolog
+query: spec_to_algorithm(find_the_biggest_number_in_a_list, Algorithm).
 ```
 
 ## Run tests

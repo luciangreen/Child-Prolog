@@ -1073,9 +1073,161 @@
       return terms.length ? terms.join(" ") : "0";
     }
 
+    function normalizeSpecificationText(text) {
+      return text
+        .toLowerCase()
+        .replace(/_/g, " ")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    }
+
+    function detectSpecToAlgorithmRequest(query) {
+      const biggestSpecTexts = new Set([
+        "find the biggest number in a list",
+        "find biggest number in a list",
+        "biggest number in a list",
+      ]);
+
+      if (query.type === "atom" && biggestSpecTexts.has(normalizeSpecificationText(query.value))) {
+        return {
+          key: "biggest_number_in_a_list",
+          label: "Find the biggest number in a list.",
+          target: null,
+        };
+      }
+
+      if (
+        query.type === "compound" &&
+        query.functor === "spec_to_algorithm" &&
+        query.args.length === 2 &&
+        query.args[0].type === "atom"
+      ) {
+        const normalized = normalizeSpecificationText(query.args[0].value);
+        if (biggestSpecTexts.has(normalized)) {
+          return {
+            key: "biggest_number_in_a_list",
+            label: "Find the biggest number in a list.",
+            target: query.args[1],
+          };
+        }
+      }
+
+      return null;
+    }
+
+    function buildBiggestNumberAlgorithm() {
+      return [
+        "biggest([X], X).",
+        "biggest([X|Rest], Biggest) :-",
+        "  biggest(Rest, RestBiggest),",
+        "  max(X, RestBiggest, Biggest).",
+      ];
+    }
+
+    function buildBiggestNumberTrace(numbers) {
+      function walk(index) {
+        const current = numbers[index];
+        const remaining = numbers.slice(index);
+
+        if (index === numbers.length - 1) {
+          return {
+            biggest: current,
+            comparisons: [],
+            evaluationSteps: [`biggest([${remaining.join(",")}]) = ${current}`],
+            tree: {
+              goal: `biggest([${remaining.join(",")}]) = ${current}`,
+              children: [],
+            },
+          };
+        }
+
+        const rest = walk(index + 1);
+        const biggest = Math.max(current, rest.biggest);
+        return {
+          biggest,
+          comparisons: [`compare ${current} with biggest([${numbers.slice(index + 1).join(",")}])`].concat(rest.comparisons),
+          evaluationSteps: rest.evaluationSteps.concat(
+            `compare ${current} with ${rest.biggest}, so the biggest so far is ${biggest}`
+          ),
+          tree: {
+            goal: `compare ${current} with biggest([${numbers.slice(index + 1).join(",")}])`,
+            children: [
+              rest.tree,
+              {
+                goal: `max(${current}, ${rest.biggest}) = ${biggest}`,
+                children: [],
+              },
+            ],
+          },
+        };
+      }
+
+      const trace = walk(0);
+      return {
+        list: numbers.slice(),
+        biggest: trace.biggest,
+        comparisons: trace.comparisons.concat(`answer = ${trace.biggest}`),
+        evaluationSteps: trace.evaluationSteps.concat(`answer = ${trace.biggest}`),
+        tree: trace.tree,
+      };
+    }
+
+    function resolveSpecToAlgorithm(query, request) {
+      if (request.key !== "biggest_number_in_a_list") {
+        return null;
+      }
+
+      const generatedProgramLines = buildBiggestNumberAlgorithm();
+      const generatedProgram = generatedProgramLines.join("\n");
+      const sampleTrace = buildBiggestNumberTrace([3, 8, 2, 5]);
+      const target = request.target;
+      const targetName = target && target.type === "var" ? target.name : null;
+      const solutions = targetName ? [{ [targetName]: generatedProgram }] : [{}];
+      const answer = targetName
+        ? `${targetName} = generated recursive algorithm.`
+        : "Generated a recursive algorithm for finding the biggest number in a list.";
+
+      return {
+        query: termToString(query),
+        success: true,
+        answer,
+        solutions,
+        steps: [
+          "To find the biggest number:",
+          "1. If the list has one number, that number is biggest.",
+          "2. Otherwise, find the biggest number in the rest of the list.",
+          "3. Compare the first number with that result.",
+          "Generated child Prolog:",
+        ].concat(generatedProgramLines),
+        visual: {
+          type: "tree",
+          data: {
+            query: termToString(query),
+            specification: request.label,
+            generatedProgram,
+            generatedProgramLines,
+            sampleTrace: {
+              list: sampleTrace.list,
+              biggest: sampleTrace.biggest,
+              comparisons: sampleTrace.comparisons,
+              evaluationSteps: sampleTrace.evaluationSteps,
+            },
+            proofTrees: [sampleTrace.tree],
+            solutions,
+            compression: null,
+          },
+        },
+      };
+    }
+
     function resolve(programSource, querySource) {
       const query = parseQuery(querySource);
       const queryVariables = collectQueryVariables(query);
+      const specToAlgorithmRequest = detectSpecToAlgorithmRequest(query);
+
+      if (specToAlgorithmRequest) {
+        return resolveSpecToAlgorithm(query, specToAlgorithmRequest);
+      }
 
       if (
         query.type === "compound" &&
