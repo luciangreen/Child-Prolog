@@ -704,8 +704,15 @@
         return "";
       }
 
-      const capitalized = `${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
+      const capitalized = capitalizeFirst(raw);
       return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+    }
+
+    function capitalizeFirst(text) {
+      if (!text || text.length < 1) {
+        return text;
+      }
+      return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
     }
 
     function gcdBigInt(left, right) {
@@ -873,9 +880,9 @@
     }
 
     function ordinalWord(index) {
-      const names = ["zero", "first", "second", "third", "fourth", "fifth", "sixth"];
-      if (index >= 0 && index < names.length) {
-        return names[index];
+      const names = ["first", "second", "third", "fourth", "fifth", "sixth"];
+      if (index > 0 && index <= names.length) {
+        return names[index - 1];
       }
       return `${index}th`;
     }
@@ -991,7 +998,7 @@
         ];
 
         for (let index = 1; index < differences.length; index += 1) {
-          steps.push(`${ordinalWord(index).charAt(0).toUpperCase()}${ordinalWord(index).slice(1)} differences:`);
+          steps.push(`${capitalizeFirst(ordinalWord(index))} differences:`);
           steps.push(differences[index].join(", "));
         }
 
