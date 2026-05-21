@@ -89,6 +89,59 @@
     function createParser() {
       let anonymousCounter = 0;
 
+      function findTopLevelWord(text, word) {
+        let roundDepth = 0;
+        let squareDepth = 0;
+
+        for (let index = 0; index <= text.length - word.length; index += 1) {
+          const character = text[index];
+          if (character === "(") {
+            roundDepth += 1;
+          } else if (character === ")") {
+            roundDepth -= 1;
+          } else if (character === "[") {
+            squareDepth += 1;
+          } else if (character === "]") {
+            squareDepth -= 1;
+          }
+
+          if (roundDepth === 0 && squareDepth === 0 && text.slice(index, index + word.length) === word) {
+            return index;
+          }
+        }
+
+        return -1;
+      }
+
+      function findTopLevelCharFromRight(text, target) {
+        let roundDepth = 0;
+        let squareDepth = 0;
+
+        for (let index = text.length - 1; index >= 0; index -= 1) {
+          const character = text[index];
+          if (character === ")") {
+            roundDepth += 1;
+          } else if (character === "(") {
+            roundDepth -= 1;
+          } else if (character === "]") {
+            squareDepth += 1;
+          } else if (character === "[") {
+            squareDepth -= 1;
+          }
+
+          if (
+            character === target &&
+            roundDepth === 0 &&
+            squareDepth === 0 &&
+            index > 0
+          ) {
+            return index;
+          }
+        }
+
+        return -1;
+      }
+
       function parseTerm(rawText) {
         const text = rawText.trim();
 
@@ -109,6 +162,54 @@
           return {
             type: "list",
             items: inner ? splitTopLevel(inner, ",").map(parseTerm) : [],
+          };
+        }
+
+        const isIndex = findTopLevelWord(text, " is ");
+        if (isIndex !== -1) {
+          return {
+            type: "compound",
+            functor: "is",
+            args: [
+              parseTerm(text.slice(0, isIndex)),
+              parseTerm(text.slice(isIndex + 4)),
+            ],
+          };
+        }
+
+        const greaterThanIndex = findTopLevelWord(text, " > ");
+        if (greaterThanIndex !== -1) {
+          return {
+            type: "compound",
+            functor: ">",
+            args: [
+              parseTerm(text.slice(0, greaterThanIndex)),
+              parseTerm(text.slice(greaterThanIndex + 3)),
+            ],
+          };
+        }
+
+        const plusIndex = findTopLevelCharFromRight(text, "+");
+        if (plusIndex !== -1) {
+          return {
+            type: "compound",
+            functor: "+",
+            args: [
+              parseTerm(text.slice(0, plusIndex)),
+              parseTerm(text.slice(plusIndex + 1)),
+            ],
+          };
+        }
+
+        const minusIndex = findTopLevelCharFromRight(text, "-");
+        if (minusIndex !== -1) {
+          return {
+            type: "compound",
+            functor: "-",
+            args: [
+              parseTerm(text.slice(0, minusIndex)),
+              parseTerm(text.slice(minusIndex + 1)),
+            ],
           };
         }
 
@@ -356,6 +457,63 @@
       });
     }
 
+    function evaluateArithmetic(term, bindings) {
+      const resolved = substitute(term, bindings);
+
+      if (resolved.type === "number") {
+        return resolved.value;
+      }
+
+      if (resolved.type === "atom" && /^-?\d+$/.test(resolved.value)) {
+        return Number(resolved.value);
+      }
+
+      if (resolved.type === "compound" && resolved.args.length === 2) {
+        const left = evaluateArithmetic(resolved.args[0], bindings);
+        const right = evaluateArithmetic(resolved.args[1], bindings);
+        if (left === null || right === null) {
+          return null;
+        }
+
+        if (resolved.functor === "+") {
+          return left + right;
+        }
+
+        if (resolved.functor === "-") {
+          return left - right;
+        }
+      }
+
+      return null;
+    }
+
+    function buildSumToCompression(numberN, sumValue) {
+      const expansion = [];
+      let prefix = "";
+
+      for (let value = numberN; value > 0; value -= 1) {
+        if (prefix) {
+          prefix += " + ";
+        }
+        prefix += String(value);
+        if (value > 1) {
+          expansion.push(`${prefix} + sum_to(${value - 1})`);
+        }
+      }
+
+      const finalExpansion = numberN > 0 ? `${prefix} + 0` : "0";
+
+      return {
+        n: numberN,
+        sum: sumValue,
+        expansion,
+        finalExpansion,
+        repeatedIdea: "The repeated idea is: keep adding the next smaller number.",
+        compressedRule: "S = N(N+1)/2",
+        formula: "sum_to(N) = N * (N + 1) / 2",
+      };
+    }
+
     function resolve(programSource, querySource) {
       const clauses = parseProgram(programSource);
       const query = parseQuery(querySource);
@@ -367,27 +525,67 @@
 
       function prove(goals, bindings, steps, depth) {
         if (solutions.length >= settings.maxSolutions || visitedNodes >= settings.maxNodes) {
-          return;
+          return [];
         }
 
         if (depth > settings.maxDepth) {
           fallbackSteps.push("Stopped because the proof went too deep.");
-          return;
+          return [];
         }
 
         if (!goals.length) {
-          solutions.push({
+          return [{
             bindings: normalizeBindings(queryVariables, bindings),
             steps: steps.concat("The query is proven."),
             tree: { goal: "success", children: [] },
-          });
-          return;
+          }];
         }
 
         visitedNodes += 1;
         const currentGoal = substitute(goals[0], bindings);
         const remainingGoals = goals.slice(1);
         const currentGoalText = termToString(currentGoal);
+        const localSolutions = [];
+
+        if (currentGoal.type === "compound" && currentGoal.functor === ">" && currentGoal.args.length === 2) {
+          const leftValue = evaluateArithmetic(currentGoal.args[0], bindings);
+          const rightValue = evaluateArithmetic(currentGoal.args[1], bindings);
+          if (leftValue !== null && rightValue !== null && leftValue > rightValue) {
+            const stepText = `Check ${currentGoalText}: ${leftValue} > ${rightValue} is true.`;
+            const childSolutions = prove(remainingGoals, bindings, steps.concat(stepText), depth + 1);
+            childSolutions.forEach((solution) => {
+              localSolutions.push({
+                bindings: solution.bindings,
+                steps: solution.steps,
+                tree: { goal: stepText, children: [solution.tree] },
+              });
+            });
+          }
+          return localSolutions;
+        }
+
+        if (currentGoal.type === "compound" && currentGoal.functor === "is" && currentGoal.args.length === 2) {
+          const computedValue = evaluateArithmetic(currentGoal.args[1], bindings);
+          if (computedValue !== null) {
+            const nextBindings = unify(
+              currentGoal.args[0],
+              { type: "number", value: computedValue },
+              bindings
+            );
+            if (nextBindings) {
+              const stepText = `Compute ${termToString(currentGoal.args[0])} is ${termToString(currentGoal.args[1])}: ${termToString(currentGoal.args[0])} = ${computedValue}.`;
+              const childSolutions = prove(remainingGoals, nextBindings, steps.concat(stepText), depth + 1);
+              childSolutions.forEach((solution) => {
+                localSolutions.push({
+                  bindings: solution.bindings,
+                  steps: solution.steps,
+                  tree: { goal: stepText, children: [solution.tree] },
+                });
+              });
+            }
+          }
+          return localSolutions;
+        }
 
         clauses.forEach((clause) => {
           if (
@@ -412,11 +610,27 @@
             : `To prove ${currentGoalText}, use the fact ${clauseToString(clause)}`;
 
           const childSteps = steps.concat(stepText);
-          prove(freshClause.body.concat(remainingGoals), unifiedBindings, childSteps, depth + 1);
+          const childSolutions = prove(
+            freshClause.body.concat(remainingGoals),
+            unifiedBindings,
+            childSteps,
+            depth + 1
+          );
+
+          childSolutions.forEach((solution) => {
+            localSolutions.push({
+              bindings: solution.bindings,
+              steps: solution.steps,
+              tree: { goal: stepText, children: [solution.tree] },
+            });
+          });
         });
+
+        return localSolutions;
       }
 
-      prove([query], {}, [], 0);
+      const rawSolutions = prove([query], {}, [], 0);
+      solutions.push(...rawSolutions);
 
       const uniqueSolutions = deduplicateSolutions(solutions);
       const firstSolution = uniqueSolutions[0];
@@ -424,7 +638,17 @@
 
       let answer = `No proof found for ${termToString(query)}.`;
       if (uniqueSolutions.length) {
-        if (!hasVariables) {
+        if (
+          query.type === "compound" &&
+          query.functor === "sum_to" &&
+          query.args.length === 2 &&
+          uniqueSolutions.length === 1 &&
+          query.args[1].type === "var"
+        ) {
+          const sumName = query.args[1].name;
+          const sumValue = uniqueSolutions[0].bindings[sumName];
+          answer = `${sumName} = ${sumValue}.`;
+        } else if (!hasVariables) {
           answer = `${termToString(query)} is true.`;
         } else if (uniqueSolutions.length === 1) {
           answer = "Found 1 solution.";
@@ -433,18 +657,45 @@
         }
       }
 
+      let stage2Compression = null;
+      const stage2Steps = [];
+      if (
+        query.type === "compound" &&
+        query.functor === "sum_to" &&
+        query.args.length === 2 &&
+        query.args[0].type === "number" &&
+        query.args[1].type === "var" &&
+        uniqueSolutions.length > 0
+      ) {
+        const numberN = query.args[0].value;
+        const sumName = query.args[1].name;
+        const sumValue = Number(uniqueSolutions[0].bindings[sumName]);
+        if (Number.isInteger(numberN) && numberN >= 0 && Number.isFinite(sumValue)) {
+          stage2Compression = buildSumToCompression(numberN, sumValue);
+          stage2Steps.push(`sum_to(${numberN}) means:`);
+          stage2Compression.expansion.forEach((line) => stage2Steps.push(line));
+          stage2Steps.push(stage2Compression.finalExpansion);
+          stage2Steps.push(`So the answer is ${sumValue}.`);
+          stage2Steps.push(stage2Compression.repeatedIdea);
+          stage2Steps.push("This compresses to:");
+          stage2Steps.push(stage2Compression.compressedRule);
+          stage2Steps.push(stage2Compression.formula);
+        }
+      }
+
       return {
         query: termToString(query),
         success: uniqueSolutions.length > 0,
         answer,
         solutions: uniqueSolutions.map((solution) => solution.bindings),
-        steps: firstSolution ? firstSolution.steps : fallbackSteps,
+        steps: firstSolution ? firstSolution.steps.concat(stage2Steps) : fallbackSteps,
         visual: {
           type: "tree",
           data: {
             query: termToString(query),
             proofTrees: uniqueSolutions.map((solution) => solution.tree),
             solutions: uniqueSolutions.map((solution) => solution.bindings),
+            compression: stage2Compression,
           },
         },
       };

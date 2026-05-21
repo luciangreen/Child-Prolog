@@ -7,12 +7,19 @@
 })(typeof globalThis !== "undefined" ? globalThis : window, function () {
   function createNode(document, tree) {
     const item = document.createElement("li");
-    item.textContent = tree.goal;
 
     if (tree.children && tree.children.length) {
+      const details = document.createElement("details");
+      details.open = true;
+      const summary = document.createElement("summary");
+      summary.textContent = tree.goal;
+      details.appendChild(summary);
       const list = document.createElement("ul");
       tree.children.forEach((child) => list.appendChild(createNode(document, child)));
-      item.appendChild(list);
+      details.appendChild(list);
+      item.appendChild(details);
+    } else {
+      item.textContent = tree.goal;
     }
 
     return item;
@@ -37,6 +44,43 @@
       list.appendChild(wrapper);
     });
     container.appendChild(list);
+  }
+
+  function renderCompression(container, compression) {
+    container.innerHTML = "";
+
+    if (!compression) {
+      container.textContent = "No compression pattern for this query.";
+      return;
+    }
+
+    const heading = document.createElement("div");
+    heading.textContent = `sum_to(${compression.n}) = ${compression.sum}`;
+    container.appendChild(heading);
+
+    const details = document.createElement("details");
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.textContent = "Show recursive expansion";
+    details.appendChild(summary);
+
+    const lines = document.createElement("ul");
+    compression.expansion.forEach((line) => {
+      const item = document.createElement("li");
+      item.textContent = line;
+      lines.appendChild(item);
+    });
+
+    const finalLine = document.createElement("li");
+    finalLine.textContent = compression.finalExpansion;
+    lines.appendChild(finalLine);
+
+    details.appendChild(lines);
+    container.appendChild(details);
+
+    const compressed = document.createElement("div");
+    compressed.textContent = `${compression.compressedRule} | ${compression.formula}`;
+    container.appendChild(compressed);
   }
 
   function renderSolutions(container, solutions) {
@@ -66,6 +110,9 @@
 
     renderSolutions(elements.solutions, result.solutions);
     renderTree(elements.tree, result.visual);
+    if (elements.compression) {
+      renderCompression(elements.compression, result.visual?.data?.compression);
+    }
     elements.raw.textContent = JSON.stringify(result, null, 2);
   }
 
