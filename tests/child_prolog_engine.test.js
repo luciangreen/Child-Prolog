@@ -123,6 +123,6 @@ rule(connect_grandparent) :-
   assert.ok(
     result.visual.data.after.edges.some((edge) => edge.from === "a" && edge.to === "c")
   );
-  assert.match(result.steps.join(" "), /Because A connects to b, and b connects to c,/);
+  assert.match(result.steps.join(" "), /Because a connects to b, and b connects to c,/);
   assert.match(result.steps.join(" "), /shortcut from a to c/);
 });

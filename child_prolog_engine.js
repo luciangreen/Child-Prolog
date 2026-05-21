@@ -837,12 +837,12 @@
           const first = witnesses[0];
           const second = witnesses[1];
           lines.push(
-            `Because ${capitalizeFirst(first.from)} connects to ${first.to}, and ${second.from} connects to ${second.to},`
+            `Because ${first.from} connects to ${first.to}, and ${second.from} connects to ${second.to},`
           );
           lines.push(`we can add a shortcut from ${edge.from} to ${edge.to}.`);
         } else if (witnesses.length === 1) {
           const only = witnesses[0];
-          lines.push(`Because ${capitalizeFirst(only.from)} connects to ${only.to},`);
+          lines.push(`Because ${only.from} connects to ${only.to},`);
           lines.push(`we can add a shortcut from ${edge.from} to ${edge.to}.`);
         } else {
           lines.push(`We add a shortcut from ${edge.from} to ${edge.to}.`);
