@@ -1081,6 +1081,14 @@
         .trim();
     }
 
+    function normalizeQuerySourceText(source) {
+      return source
+        .trim()
+        .replace(/^\?\-\s*/, "")
+        .replace(/^query:\s*/i, "")
+        .replace(/\.\s*$/, "");
+    }
+
     function detectSpecToAlgorithmRequest(query) {
       const biggestSpecTexts = new Set([
         "find the biggest number in a list",
@@ -1221,6 +1229,19 @@
     }
 
     function resolve(programSource, querySource) {
+      const rawSpecificationText = normalizeQuerySourceText(querySource);
+      const rawSpecificationRequest = detectSpecToAlgorithmRequest({
+        type: "atom",
+        value: rawSpecificationText,
+      });
+
+      if (rawSpecificationRequest) {
+        return resolveSpecToAlgorithm(
+          { type: "atom", value: rawSpecificationRequest.label.replace(/\.$/, "") },
+          rawSpecificationRequest
+        );
+      }
+
       const query = parseQuery(querySource);
       const queryVariables = collectQueryVariables(query);
       const specToAlgorithmRequest = detectSpecToAlgorithmRequest(query);
