@@ -699,7 +699,7 @@
       }
 
       const raw = tokens.join(" ").replace(/\s+/g, " ").trim();
-      if (!raw) {
+      if (!raw || raw.length === 0) {
         return "";
       }
 
@@ -719,6 +719,7 @@
       ) {
         const grammarRules = parseGrammarRules(programSource);
         if (grammarRules.length > 0) {
+          const MAX_CFG_EXAMPLES = 2;
           const derivations = generateCfgDerivations(query.args[0], grammarRules, settings.maxNodes);
           const generated = derivations
             .map((item) => ({
@@ -736,10 +737,10 @@
                 .filter((item) => target.type === "atom" && item.sentence.toLowerCase() === target.value.toLowerCase())
                 .map(() => ({}));
           const success = solutions.length > 0;
-          const exampleCount = Math.min(2, generated.length);
-          const stage3Steps = buildCfgExplanation(query.args[0], grammarRules);
+          const exampleCount = Math.min(MAX_CFG_EXAMPLES, generated.length);
+          const cfgExplanation = buildCfgExplanation(query.args[0], grammarRules);
           for (let index = 0; index < exampleCount; index += 1) {
-            stage3Steps.push(`Example ${index + 1}: ${generated[index].sentence}`);
+            cfgExplanation.push(`Example ${index + 1}: ${generated[index].sentence}`);
           }
 
           let answer = `No sentence generated for ${termToString(query.args[0])}.`;
@@ -754,7 +755,7 @@
             success,
             answer,
             solutions,
-            steps: stage3Steps,
+            steps: cfgExplanation,
             visual: {
               type: "grammar",
               data: {
