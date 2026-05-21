@@ -76,3 +76,23 @@ verb --> [finds].`;
   const generated = result.solutions.map((solution) => solution.S);
   assert.ok(generated.includes("The robot finds a dragon."));
 });
+
+test("runs stage 4 formula discovery examples", () => {
+  const engine = createEngine();
+  const cases = [
+    { query: "discover_formula([1,2,3,4,5],F).", formula: "N" },
+    { query: "discover_formula([1,4,9,16,25],F).", formula: "N^2" },
+    { query: "discover_formula([1,8,27,64,125],F).", formula: "N^3" },
+    { query: "discover_formula([2,4,6,8,10],F).", formula: "2N" },
+    { query: "discover_formula([3,6,11,18,27],F).", formula: "N^2 + 2" },
+  ];
+
+  cases.forEach(({ query, formula }) => {
+    const result = engine.resolve("", query);
+    assert.equal(result.success, true);
+    assert.equal(result.visual.type, "formula");
+    assert.deepEqual(result.solutions, [{ F: formula }]);
+    assert.match(result.steps.join(" "), /The discovered rule is:/);
+    assert.match(result.steps.join(" "), new RegExp(`a\\(N\\) = ${formula.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  });
+});
