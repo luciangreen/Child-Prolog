@@ -70,7 +70,6 @@ verb --> [finds].`;
   assert.equal(result.visual.type, "grammar");
   assert.match(result.steps.join(" "), /A sentence is made from:/);
   assert.match(result.steps.join(" "), /A noun phrase is:/);
-  assert.ok(result.solutions.length >= 1);
   assert.ok(result.solutions.length >= 2);
   assert.match(result.solutions[0].S, /^[A-Z].*\.$/);
   const generated = result.solutions.map((solution) => solution.S);
