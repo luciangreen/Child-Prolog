@@ -699,7 +699,7 @@
       }
 
       const raw = tokens.join(" ").replace(/\s+/g, " ").trim();
-      if (!raw || raw.length === 0) {
+      if (!raw) {
         return "";
       }
 
@@ -719,7 +719,7 @@
       ) {
         const grammarRules = parseGrammarRules(programSource);
         if (grammarRules.length > 0) {
-          const MAX_CFG_EXAMPLES = 2;
+          const MAX_EXPLANATION_EXAMPLES = 2;
           const derivations = generateCfgDerivations(query.args[0], grammarRules, settings.maxNodes);
           const generated = derivations
             .map((item) => ({
@@ -737,7 +737,7 @@
                 .filter((item) => target.type === "atom" && item.sentence.toLowerCase() === target.value.toLowerCase())
                 .map(() => ({}));
           const success = solutions.length > 0;
-          const exampleCount = Math.min(MAX_CFG_EXAMPLES, generated.length);
+          const exampleCount = Math.min(MAX_EXPLANATION_EXAMPLES, generated.length);
           const cfgExplanation = buildCfgExplanation(query.args[0], grammarRules);
           for (let index = 0; index < exampleCount; index += 1) {
             cfgExplanation.push(`Example ${index + 1}: ${generated[index].sentence}`);
