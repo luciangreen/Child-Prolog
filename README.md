@@ -1,6 +1,6 @@
 # Child-Prolog
 
-Stage 6 now includes spec-to-algorithm generation on top of Stage 5 graph transformations, Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
+Stage 7 now includes executable symbolic worlds on top of Stage 6 spec-to-algorithm generation, Stage 5 graph transformations, Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
 
 ## Features
 
@@ -14,6 +14,7 @@ Stage 6 now includes spec-to-algorithm generation on top of Stage 5 graph transf
 - stage-4 formula discovery with `discover_formula([1,4,9,16,25],F).`
 - stage-5 graph transformations with `apply(connect_grandparent).`
 - stage-6 spec-to-algorithm generation from plain-language specs like `Find the biggest number in a list.`
+- stage-7 executable symbolic worlds with queries like `can_enter(tower).`
 - JSON output shaped for visualization panels
 
 ## Run in the browser
@@ -83,6 +84,24 @@ or
 
 ```prolog
 query: spec_to_algorithm(find_the_biggest_number_in_a_list, Algorithm).
+```
+
+Stage 7 symbolic world query example:
+
+```prolog
+room(garden).
+room(cave).
+room(tower).
+path(garden,cave).
+path(cave,tower).
+has_key(garden).
+locked(tower).
+can_enter(Room) :-
+  room(Room),
+  not(locked(Room)).
+can_enter(tower) :-
+  has_key(garden).
+query: can_enter(tower).
 ```
 
 ## Run tests
