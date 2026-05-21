@@ -12,7 +12,7 @@ Stage 1 now includes a tiny browser-based Prolog-style interpreter.
 
 ## Run in the browser
 
-Open `/home/runner/work/Child-Prolog/Child-Prolog/index.html` in a browser.
+Open `index.html` in a browser from the project root.
 
 The default example proves:
 
@@ -32,6 +32,6 @@ ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y).
 ## Run tests
 
 ```bash
-cd /home/runner/work/Child-Prolog/Child-Prolog
+cd /path/to/Child-Prolog
 npm test
 ```
