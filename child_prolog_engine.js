@@ -10,6 +10,7 @@
       maxDepth: options.maxDepth || 30,
       maxSolutions: options.maxSolutions || 20,
       maxNodes: options.maxNodes || 1000,
+      maxCfgExplanationExamples: options.maxCfgExplanationExamples || 2,
     };
 
     function splitTopLevel(text, delimiter) {
@@ -699,11 +700,11 @@
       }
 
       const raw = tokens.join(" ").replace(/\s+/g, " ").trim();
-      if (raw.length === 0) {
+      if (raw.length < 1) {
         return "";
       }
 
-      const capitalized = `${raw[0].toUpperCase()}${raw.slice(1)}`;
+      const capitalized = `${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
       return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
     }
 
@@ -719,7 +720,6 @@
       ) {
         const grammarRules = parseGrammarRules(programSource);
         if (grammarRules.length > 0) {
-          const MAX_EXPLANATION_EXAMPLES = 2;
           const derivations = generateCfgDerivations(query.args[0], grammarRules, settings.maxNodes);
           const generated = derivations
             .map((item) => ({
@@ -737,7 +737,7 @@
                 .filter((item) => target.type === "atom" && item.sentence.toLowerCase() === target.value.toLowerCase())
                 .map(() => ({}));
           const success = solutions.length > 0;
-          const exampleCount = Math.min(MAX_EXPLANATION_EXAMPLES, generated.length);
+          const exampleCount = Math.min(settings.maxCfgExplanationExamples, generated.length);
           const cfgExplanation = buildCfgExplanation(query.args[0], grammarRules);
           for (let index = 0; index < exampleCount; index += 1) {
             cfgExplanation.push(`Example ${index + 1}: ${generated[index].sentence}`);
