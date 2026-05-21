@@ -115,7 +115,7 @@
 
     if (generatedProgram) {
       const heading = document.createElement("div");
-      heading.textContent = "Generated Child Prolog:";
+      heading.textContent = "Generated Prolog:";
       container.appendChild(heading);
 
       const programBlock = document.createElement("pre");

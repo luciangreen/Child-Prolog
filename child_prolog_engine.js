@@ -1091,7 +1091,6 @@
 
     const specToAlgorithmRegistry = [
       {
-        key: "biggest_number_in_a_list",
         label: "Find the biggest number in a list.",
         variations: [
           "find the biggest number in a list",
@@ -1156,7 +1155,6 @@
           return {
             biggest: current,
             comparisons: [],
-            evaluationSteps: [`biggest([${remaining.join(",")}]) = ${current}`],
             tree: {
               goal: `biggest([${remaining.join(",")}]) = ${current}`,
               children: [],
@@ -1169,9 +1167,6 @@
         return {
           biggest,
           comparisons: [`compare ${current} with biggest([${numbers.slice(index + 1).join(",")}])`].concat(rest.comparisons),
-          evaluationSteps: rest.evaluationSteps.concat(
-            `compare ${current} with ${rest.biggest}, so the biggest so far is ${biggest}`
-          ),
           tree: {
             goal: `compare ${current} with biggest([${numbers.slice(index + 1).join(",")}])`,
             children: [
@@ -1190,7 +1185,6 @@
         list: numbers.slice(),
         biggest: trace.biggest,
         comparisons: trace.comparisons.concat(`answer = ${trace.biggest}`),
-        evaluationSteps: trace.evaluationSteps.concat(`answer = ${trace.biggest}`),
         tree: trace.tree,
       };
     }
@@ -1234,7 +1228,6 @@
               list: sampleTrace.list,
               biggest: sampleTrace.biggest,
               comparisons: sampleTrace.comparisons,
-              evaluationSteps: sampleTrace.evaluationSteps,
             },
             proofTrees: [sampleTrace.tree],
             solutions,
