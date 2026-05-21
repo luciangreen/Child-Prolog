@@ -704,13 +704,354 @@
         return "";
       }
 
-      const capitalized = `${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
+      const capitalized = capitalizeFirst(raw);
       return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+    }
+
+    function capitalizeFirst(text) {
+      if (!text || text.length < 1) {
+        return text;
+      }
+      return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+    }
+
+    function gcdBigInt(left, right) {
+      let a = left < 0n ? -left : left;
+      let b = right < 0n ? -right : right;
+
+      while (b !== 0n) {
+        const remainder = a % b;
+        a = b;
+        b = remainder;
+      }
+
+      return a === 0n ? 1n : a;
+    }
+
+    function makeFraction(num, den = 1n) {
+      if (den === 0n) {
+        throw new Error("Cannot divide by zero in polynomial solver.");
+      }
+
+      let numerator = num;
+      let denominator = den;
+      if (denominator < 0n) {
+        numerator = -numerator;
+        denominator = -denominator;
+      }
+
+      const divisor = gcdBigInt(numerator, denominator);
+      return {
+        num: numerator / divisor,
+        den: denominator / divisor,
+      };
+    }
+
+    function addFraction(left, right) {
+      return makeFraction(left.num * right.den + right.num * left.den, left.den * right.den);
+    }
+
+    function subtractFraction(left, right) {
+      return makeFraction(left.num * right.den - right.num * left.den, left.den * right.den);
+    }
+
+    function multiplyFraction(left, right) {
+      return makeFraction(left.num * right.num, left.den * right.den);
+    }
+
+    function divideFraction(left, right) {
+      return makeFraction(left.num * right.den, left.den * right.num);
+    }
+
+    function isZeroFraction(value) {
+      return value.num === 0n;
+    }
+
+    function negateFraction(value) {
+      return makeFraction(-value.num, value.den);
+    }
+
+    function absoluteFraction(value) {
+      return value.num < 0n ? negateFraction(value) : value;
+    }
+
+    function fractionToString(value) {
+      if (value.den === 1n) {
+        return value.num.toString();
+      }
+      return `${value.num.toString()}/${value.den.toString()}`;
+    }
+
+    function buildFiniteDifferences(sequence) {
+      const rows = [sequence.slice()];
+      while (rows[rows.length - 1].length > 1) {
+        const previous = rows[rows.length - 1];
+        const next = [];
+        for (let index = 1; index < previous.length; index += 1) {
+          next.push(previous[index] - previous[index - 1]);
+        }
+        rows.push(next);
+      }
+      return rows;
+    }
+
+    function findConstantDifferenceDegree(differences) {
+      for (let index = 0; index < differences.length; index += 1) {
+        const row = differences[index];
+        if (!row.length) {
+          continue;
+        }
+        if (row.every((value) => value === row[0])) {
+          return index;
+        }
+      }
+      return differences.length - 1;
+    }
+
+    function solvePolynomialCoefficients(sequence, degree) {
+      const size = degree + 1;
+      const matrix = [];
+
+      for (let row = 0; row < size; row += 1) {
+        const n = BigInt(row + 1);
+        const currentRow = [];
+        for (let power = 0; power <= degree; power += 1) {
+          currentRow.push(makeFraction(n ** BigInt(power)));
+        }
+        currentRow.push(makeFraction(BigInt(sequence[row])));
+        matrix.push(currentRow);
+      }
+
+      for (let column = 0; column < size; column += 1) {
+        let pivot = column;
+        while (pivot < size && isZeroFraction(matrix[pivot][column])) {
+          pivot += 1;
+        }
+
+        if (pivot === size) {
+          return null;
+        }
+
+        if (pivot !== column) {
+          const temporary = matrix[column];
+          matrix[column] = matrix[pivot];
+          matrix[pivot] = temporary;
+        }
+
+        const pivotValue = matrix[column][column];
+        for (let valueIndex = column; valueIndex <= size; valueIndex += 1) {
+          matrix[column][valueIndex] = divideFraction(matrix[column][valueIndex], pivotValue);
+        }
+
+        for (let row = 0; row < size; row += 1) {
+          if (row === column) {
+            continue;
+          }
+          const factor = matrix[row][column];
+          if (isZeroFraction(factor)) {
+            continue;
+          }
+          for (let valueIndex = column; valueIndex <= size; valueIndex += 1) {
+            matrix[row][valueIndex] = subtractFraction(
+              matrix[row][valueIndex],
+              multiplyFraction(factor, matrix[column][valueIndex])
+            );
+          }
+        }
+      }
+
+      return matrix.map((row) => row[size]);
+    }
+
+    function polynomialKind(degree) {
+      if (degree <= 0) {
+        return "constant";
+      }
+      if (degree === 1) {
+        return "linear";
+      }
+      if (degree === 2) {
+        return "quadratic";
+      }
+      if (degree === 3) {
+        return "cubic";
+      }
+      return `degree-${degree}`;
+    }
+
+    function ordinalWord(index) {
+      const names = ["first", "second", "third", "fourth", "fifth", "sixth"];
+      if (index > 0 && index <= names.length) {
+        return names[index - 1];
+      }
+      const mod100 = index % 100;
+      if (mod100 >= 11 && mod100 <= 13) {
+        return `${index}th`;
+      }
+      const mod10 = index % 10;
+      if (mod10 === 1) {
+        return `${index}st`;
+      }
+      if (mod10 === 2) {
+        return `${index}nd`;
+      }
+      if (mod10 === 3) {
+        return `${index}rd`;
+      }
+      return `${index}th`;
+    }
+
+    function formatPolynomialFormula(coefficients) {
+      const terms = [];
+
+      for (let power = coefficients.length - 1; power >= 0; power -= 1) {
+        const coefficient = coefficients[power];
+        if (!coefficient || isZeroFraction(coefficient)) {
+          continue;
+        }
+
+        const isNegative = coefficient.num < 0n;
+        const absolute = absoluteFraction(coefficient);
+        let core;
+
+        if (power === 0) {
+          core = fractionToString(absolute);
+        } else {
+          const variablePart = power === 1 ? "N" : `N^${power}`;
+          if (absolute.num === 1n && absolute.den === 1n) {
+            core = variablePart;
+          } else if (absolute.den === 1n) {
+            core = `${absolute.num.toString()}${variablePart}`;
+          } else {
+            core = `${fractionToString(absolute)}*${variablePart}`;
+          }
+        }
+
+        if (!terms.length) {
+          terms.push(isNegative ? `-${core}` : core);
+        } else {
+          terms.push(isNegative ? `- ${core}` : `+ ${core}`);
+        }
+      }
+
+      return terms.length ? terms.join(" ") : "0";
     }
 
     function resolve(programSource, querySource) {
       const query = parseQuery(querySource);
       const queryVariables = collectQueryVariables(query);
+
+      if (
+        query.type === "compound" &&
+        query.functor === "discover_formula" &&
+        query.args.length === 2 &&
+        query.args[0].type === "list"
+      ) {
+        const sequence = query.args[0].items
+          .filter((item) => item.type === "number")
+          .map((item) => item.value);
+
+        if (sequence.length !== query.args[0].items.length || sequence.length < 2) {
+          return {
+            query: termToString(query),
+            success: false,
+            answer: "discover_formula needs a list with at least two numbers.",
+            solutions: [],
+            steps: ["Please provide a numeric list such as [1,4,9,16,25]."],
+            visual: {
+              type: "formula",
+              data: {
+                query: termToString(query),
+                sequence,
+                differences: [],
+                formula: null,
+                degree: null,
+                compression: null,
+              },
+            },
+          };
+        }
+
+        const differences = buildFiniteDifferences(sequence);
+        const degree = Math.min(findConstantDifferenceDegree(differences), sequence.length - 1);
+        const coefficients = solvePolynomialCoefficients(sequence, degree);
+
+        if (!coefficients) {
+          return {
+            query: termToString(query),
+            success: false,
+            answer: "Could not infer a polynomial formula from this sequence.",
+            solutions: [],
+            steps: [],
+            visual: {
+              type: "formula",
+              data: {
+                query: termToString(query),
+                sequence,
+                differences,
+                formula: null,
+                degree,
+                compression: null,
+              },
+            },
+          };
+        }
+
+        const formula = formatPolynomialFormula(coefficients);
+        const target = query.args[1];
+        const targetName = target.type === "var" ? target.name : null;
+        const solutions = targetName
+          ? [{ [targetName]: formula }]
+          : target.type === "atom" && target.value.replace(/\s+/g, "") === formula.replace(/\s+/g, "")
+              ? [{}]
+              : [];
+        const success = solutions.length > 0;
+        const steps = [
+          "The numbers are:",
+          sequence.join(", "),
+        ];
+
+        for (let index = 1; index < differences.length; index += 1) {
+          steps.push(`${capitalizeFirst(ordinalWord(index))} differences:`);
+          steps.push(differences[index].join(", "));
+        }
+
+        if (degree > 0) {
+          steps.push(`Because the ${ordinalWord(degree)} difference is constant, the rule is ${polynomialKind(degree)}.`);
+        } else {
+          steps.push("Because the numbers stay constant, the rule is constant.");
+        }
+        steps.push("The discovered rule is:");
+        steps.push(`a(N) = ${formula}`);
+
+        let answer = `No formula match found for ${termToString(query)}.`;
+        if (success) {
+          answer = targetName
+            ? `${targetName} = ${formula}.`
+            : `${termToString(query)} is true.`;
+        }
+
+        return {
+          query: termToString(query),
+          success,
+          answer,
+          solutions,
+          steps,
+          visual: {
+            type: "formula",
+            data: {
+              query: termToString(query),
+              sequence,
+              differences,
+              degree,
+              kind: polynomialKind(degree),
+              formula,
+              solutions,
+              compression: null,
+            },
+          },
+        };
+      }
 
       if (
         query.type === "compound" &&
