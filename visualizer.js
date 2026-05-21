@@ -292,7 +292,7 @@
       if (result.visual?.type === "graph") {
         renderGraph(container, result.visual?.data);
       } else {
-        container.innerHTML = "Graph view is available for graph/world transformation queries.";
+        container.innerHTML = `Graph view is unavailable because this result has visual type "${result.visual?.type || "none"}", not "graph".`;
       }
       return;
     }
