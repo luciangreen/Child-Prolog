@@ -1,10 +1,12 @@
 (function () {
-  const exampleProgram = `parent(alice,bob).
-parent(bob,charlie).
-ancestor(X,Y) :- parent(X,Y).
-ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y).`;
+  const exampleProgram = `sum_to(0,0).
+sum_to(N,Sum) :-
+  N > 0,
+  N1 is N - 1,
+  sum_to(N1,Prev),
+  Sum is N + Prev.`;
 
-  const exampleQuery = "ancestor(alice,charlie).";
+  const exampleQuery = "sum_to(5,S).";
 
   function boot() {
     const engine = ChildPrologEngine.createEngine();
@@ -16,6 +18,7 @@ ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y).`;
       steps: document.getElementById("steps"),
       solutions: document.getElementById("solutions"),
       tree: document.getElementById("tree"),
+      compression: document.getElementById("compression"),
       raw: document.getElementById("raw"),
     };
 

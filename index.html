@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Child Prolog Stage 1</title>
+  <title>Child Prolog Stage 2</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -86,8 +86,8 @@
 <body>
   <main>
     <section>
-      <h1>Child Prolog Lab — Stage 1</h1>
-      <p>Type a few facts and rules, then ask a query to see the proof trace and JSON result.</p>
+      <h1>Child Prolog Lab — Stage 2</h1>
+      <p>Run recursive examples like <code>sum_to(5,S).</code> to see proof steps and compression.</p>
       <label for="program">Program</label>
       <textarea id="program"></textarea>
       <label for="query">Query</label>
@@ -111,6 +111,10 @@
       <div class="panel">
         <h2>Proof tree</h2>
         <div id="tree"></div>
+      </div>
+      <div class="panel">
+        <h2>Compression</h2>
+        <div id="compression"></div>
       </div>
       <div class="panel">
         <h2>JSON output</h2>
