@@ -17,18 +17,30 @@ sum_to(N,Sum) :-
       answer: document.getElementById("answer"),
       steps: document.getElementById("steps"),
       solutions: document.getElementById("solutions"),
-      tree: document.getElementById("tree"),
-      compression: document.getElementById("compression"),
+      semantic: document.getElementById("semantic"),
+      semanticMode: document.getElementById("semanticMode"),
       raw: document.getElementById("raw"),
     };
+    let lastResult = null;
+
+    function renderLatestResult() {
+      if (!lastResult) {
+        return;
+      }
+      ChildPrologVisualizer.render(lastResult, elements);
+    }
 
     programInput.value = exampleProgram;
     queryInput.value = exampleQuery;
 
     runButton.addEventListener("click", function () {
-      const result = engine.resolve(programInput.value, queryInput.value);
-      ChildPrologVisualizer.render(result, elements);
+      lastResult = engine.resolve(programInput.value, queryInput.value);
+      renderLatestResult();
     });
+
+    if (elements.semanticMode) {
+      elements.semanticMode.addEventListener("change", renderLatestResult);
+    }
 
     runButton.click();
   }

@@ -1,6 +1,6 @@
 # Child-Prolog
 
-Stage 7 now includes executable symbolic worlds on top of Stage 6 spec-to-algorithm generation, Stage 5 graph transformations, Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
+Stage 8 now includes semantic visualization modes on top of Stage 7 executable symbolic worlds, Stage 6 spec-to-algorithm generation, Stage 5 graph transformations, Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
 
 ## Features
 
@@ -15,6 +15,7 @@ Stage 7 now includes executable symbolic worlds on top of Stage 6 spec-to-algori
 - stage-5 graph transformations with `apply(connect_grandparent).`
 - stage-6 spec-to-algorithm generation from plain-language specs like `Find the biggest number in a list.`
 - stage-7 executable symbolic worlds with queries like `can_enter(tower).`
+- stage-8 semantic visualization panel with Tree, Graph, Table, Formula, and Trace views
 - JSON output shaped for visualization panels
 
 ## Run in the browser
@@ -103,6 +104,14 @@ can_enter(tower) :-
   has_key(garden).
 query: can_enter(tower).
 ```
+
+Stage 8 semantic visualization modes:
+
+- Tree View: recursion proofs and grammar derivations
+- Graph View: graph transformations and symbolic worlds
+- Table View: finite-difference rows and solution bindings
+- Formula View: discovered/compressed rules
+- Trace View: step-by-step reasoning list
 
 ## Run tests
 

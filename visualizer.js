@@ -173,6 +173,153 @@
     container.appendChild(compressed);
   }
 
+  function renderTrace(container, result) {
+    container.innerHTML = "";
+    const lines = result?.steps || [];
+
+    if (!lines.length) {
+      container.textContent = "No trace steps yet.";
+      return;
+    }
+
+    const ordered = document.createElement("ol");
+    lines.forEach((line) => {
+      const item = document.createElement("li");
+      item.textContent = line;
+      ordered.appendChild(item);
+    });
+    container.appendChild(ordered);
+  }
+
+  function renderTable(container, result) {
+    container.innerHTML = "";
+    const visualData = result?.visual?.data || {};
+
+    if (Array.isArray(visualData.differences) && visualData.differences.length) {
+      const table = document.createElement("table");
+      const body = document.createElement("tbody");
+
+      visualData.differences.forEach((row, index) => {
+        const tr = document.createElement("tr");
+        const label = document.createElement("th");
+        label.textContent = index === 0 ? "Sequence" : `Difference ${index}`;
+        tr.appendChild(label);
+        row.forEach((value) => {
+          const td = document.createElement("td");
+          td.textContent = String(value);
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+
+      table.appendChild(body);
+      container.appendChild(table);
+      return;
+    }
+
+    if (Array.isArray(result?.solutions) && result.solutions.length) {
+      const keys = Array.from(
+        result.solutions.reduce((set, solution) => {
+          Object.keys(solution).forEach((key) => set.add(key));
+          return set;
+        }, new Set())
+      );
+
+      if (!keys.length) {
+        container.textContent = "No tabular values for this query.";
+        return;
+      }
+
+      const table = document.createElement("table");
+      const headRow = document.createElement("tr");
+      keys.forEach((key) => {
+        const th = document.createElement("th");
+        th.textContent = key;
+        headRow.appendChild(th);
+      });
+      table.appendChild(headRow);
+
+      result.solutions.forEach((solution) => {
+        const row = document.createElement("tr");
+        keys.forEach((key) => {
+          const td = document.createElement("td");
+          td.textContent = solution[key] || "";
+          row.appendChild(td);
+        });
+        table.appendChild(row);
+      });
+      container.appendChild(table);
+      return;
+    }
+
+    container.textContent = "No table data for this query.";
+  }
+
+  function renderFormula(container, result) {
+    container.innerHTML = "";
+    const visualData = result?.visual?.data || {};
+    const compression = visualData.compression;
+    const lines = [];
+
+    if (visualData.formula) {
+      lines.push(`a(N) = ${visualData.formula}`);
+    }
+
+    if (compression?.compressedRule) {
+      lines.push(compression.compressedRule);
+    }
+
+    if (compression?.formula) {
+      lines.push(compression.formula);
+    }
+
+    if (!lines.length) {
+      container.textContent = "No formula for this query.";
+      return;
+    }
+
+    const list = document.createElement("ul");
+    lines.forEach((line) => {
+      const item = document.createElement("li");
+      item.textContent = line;
+      list.appendChild(item);
+    });
+    container.appendChild(list);
+  }
+
+  function renderSemantic(container, mode, result) {
+    if (mode === "graph") {
+      if (result.visual?.type === "graph") {
+        renderGraph(container, result.visual?.data);
+      } else {
+        container.innerHTML = "Graph view is available for graph/world transformation queries.";
+      }
+      return;
+    }
+
+    if (mode === "table") {
+      renderTable(container, result);
+      return;
+    }
+
+    if (mode === "formula") {
+      renderFormula(container, result);
+      return;
+    }
+
+    if (mode === "trace") {
+      renderTrace(container, result);
+      return;
+    }
+
+    if (mode === "tree") {
+      renderTree(container, result.visual);
+      return;
+    }
+
+    container.textContent = "Unknown mode.";
+  }
+
   function renderSolutions(container, solutions) {
     container.innerHTML = "";
 
@@ -199,10 +346,15 @@
     });
 
     renderSolutions(elements.solutions, result.solutions);
-    if (result.visual?.type === "graph") {
-      renderGraph(elements.tree, result.visual?.data);
-    } else {
-      renderTree(elements.tree, result.visual);
+    if (elements.semantic) {
+      const mode = elements.semanticMode?.value || "tree";
+      renderSemantic(elements.semantic, mode, result);
+    } else if (elements.tree) {
+      if (result.visual?.type === "graph") {
+        renderGraph(elements.tree, result.visual?.data);
+      } else {
+        renderTree(elements.tree, result.visual);
+      }
     }
     if (elements.compression) {
       renderCompression(elements.compression, result.visual?.data);
