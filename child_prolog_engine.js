@@ -514,10 +514,232 @@
       };
     }
 
+    function parseGrammarRules(programSource) {
+      const statements = splitStatements(programSource);
+      const parser = createParser();
+      const rules = [];
+
+      statements.forEach((statement) => {
+        if (!statement.includes("-->")) {
+          return;
+        }
+
+        const [headText, bodyText] = statement.split("-->");
+        if (!headText || !bodyText) {
+          return;
+        }
+
+        const head = parser.parseTerm(headText.trim());
+        const body = splitTopLevel(bodyText, ",").map((part) => parser.parseTerm(part.trim()));
+        rules.push({ head, body });
+      });
+
+      return rules;
+    }
+
+    function buildCfgExplanation() {
+      return [
+        "A sentence is made from:",
+        "1. a noun phrase",
+        "2. a verb phrase",
+        "A noun phrase is:",
+        "1. a determiner",
+        "2. a noun",
+      ];
+    }
+
+    function generateCfgDerivations(startSymbol, rules, maxItems) {
+      let visitedNodes = 0;
+      const startText = termToString(startSymbol);
+
+      function matchesRuleHead(ruleHead, symbol) {
+        return termToString(ruleHead) === termToString(symbol);
+      }
+
+      function expandItem(item, depth) {
+        if (visitedNodes >= maxItems || depth > settings.maxDepth) {
+          return [];
+        }
+
+        visitedNodes += 1;
+
+        if (item.type === "list") {
+          return [{
+            tokens: item.items.map((token) => termToString(token)),
+            nodes: item.items.map((token) => ({ goal: termToString(token), children: [] })),
+          }];
+        }
+
+        if (item.type === "atom" || item.type === "compound") {
+          return expandSymbol(item, depth + 1).map((result) => ({
+            tokens: result.tokens,
+            nodes: [result.tree],
+          }));
+        }
+
+        return [];
+      }
+
+      function expandSequence(sequence, depth) {
+        let results = [{ tokens: [], nodes: [] }];
+
+        for (let index = 0; index < sequence.length; index += 1) {
+          const itemExpansions = expandItem(sequence[index], depth + 1);
+          const next = [];
+
+          results.forEach((base) => {
+            itemExpansions.forEach((expansion) => {
+              if (next.length >= maxItems) {
+                return;
+              }
+              next.push({
+                tokens: base.tokens.concat(expansion.tokens),
+                nodes: base.nodes.concat(expansion.nodes),
+              });
+            });
+          });
+
+          results = next;
+          if (!results.length || results.length >= maxItems) {
+            break;
+          }
+        }
+
+        return results;
+      }
+
+      function expandSymbol(symbol, depth) {
+        if (visitedNodes >= maxItems || depth > settings.maxDepth) {
+          return [];
+        }
+
+        const matchingRules = rules.filter((rule) => matchesRuleHead(rule.head, symbol));
+        const symbolText = termToString(symbol);
+
+        if (!matchingRules.length) {
+          return [{
+            tokens: [symbolText],
+            tree: { goal: symbolText, children: [] },
+          }];
+        }
+
+        const expansions = [];
+        matchingRules.forEach((rule) => {
+          if (expansions.length >= maxItems) {
+            return;
+          }
+
+          const bodyExpansions = expandSequence(rule.body, depth + 1);
+          bodyExpansions.forEach((bodyExpansion) => {
+            if (expansions.length >= maxItems) {
+              return;
+            }
+            expansions.push({
+              tokens: bodyExpansion.tokens,
+              tree: {
+                goal: symbolText,
+                children: bodyExpansion.nodes,
+              },
+            });
+          });
+        });
+
+        return expansions;
+      }
+
+      const rawDerivations = expandSymbol(startSymbol, 0);
+      const deduped = [];
+      const seen = new Set();
+
+      rawDerivations.forEach((item) => {
+        const key = item.tokens.join(" ");
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        deduped.push(item);
+      });
+
+      return deduped;
+    }
+
+    function formatSentence(tokens) {
+      if (!tokens.length) {
+        return "";
+      }
+
+      const raw = tokens.join(" ").replace(/\s+/g, " ").trim();
+      if (!raw) {
+        return "";
+      }
+
+      return `${raw[0].toUpperCase()}${raw.slice(1)}.`;
+    }
+
     function resolve(programSource, querySource) {
-      const clauses = parseProgram(programSource);
       const query = parseQuery(querySource);
       const queryVariables = collectQueryVariables(query);
+
+      if (
+        query.type === "compound" &&
+        query.functor === "generate" &&
+        query.args.length === 2 &&
+        (query.args[0].type === "atom" || query.args[0].type === "compound")
+      ) {
+        const grammarRules = parseGrammarRules(programSource);
+        if (grammarRules.length > 0) {
+          const derivations = generateCfgDerivations(query.args[0], grammarRules, settings.maxNodes);
+          const generated = derivations
+            .map((item) => ({
+              tokens: item.tokens,
+              sentence: formatSentence(item.tokens),
+              tree: item.tree,
+            }))
+            .filter((item) => item.sentence);
+
+          const target = query.args[1];
+          const targetName = target.type === "var" ? target.name : null;
+          const solutions = targetName
+            ? generated.map((item) => ({ [targetName]: item.sentence }))
+            : generated
+                .filter((item) => target.type === "atom" && item.sentence.toLowerCase() === target.value.toLowerCase())
+                .map(() => ({}));
+          const success = solutions.length > 0;
+          const exampleCount = Math.min(2, generated.length);
+          const stage3Steps = buildCfgExplanation();
+          for (let index = 0; index < exampleCount; index += 1) {
+            stage3Steps.push(`Example ${index + 1}: ${generated[index].sentence}`);
+          }
+
+          let answer = `No sentence generated for ${termToString(query.args[0])}.`;
+          if (success) {
+            answer = targetName
+              ? `Found ${solutions.length} sentence${solutions.length === 1 ? "" : "s"}.`
+              : `${termToString(query)} is true.`;
+          }
+
+          return {
+            query: termToString(query),
+            success,
+            answer,
+            solutions,
+            steps: stage3Steps,
+            visual: {
+              type: "grammar",
+              data: {
+                query: termToString(query),
+                startSymbol: termToString(query.args[0]),
+                generatedSentences: generated.map((item) => item.sentence),
+                derivationTrees: generated.map((item) => item.tree),
+                solutions,
+                compression: null,
+              },
+            },
+          };
+        }
+      }
+
+      const clauses = parseProgram(programSource);
       const solutions = [];
       const fallbackSteps = [];
       let clauseCounter = 0;

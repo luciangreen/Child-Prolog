@@ -1,6 +1,6 @@
 # Child-Prolog
 
-Stage 2 now includes recursive compression on top of the Stage 1 engine.
+Stage 3 now includes CFG sentence generation on top of Stage 2 recursive compression and the Stage 1 engine.
 
 ## Features
 
@@ -10,6 +10,7 @@ Stage 2 now includes recursive compression on top of the Stage 1 engine.
 - simple arithmetic goals (`>`, `is`, `+`, `-`) for recursive numeric examples
 - trace steps for child-friendly explanations
 - stage-2 recursive compression summary for `sum_to(N,S)`
+- stage-3 CFG generation using grammar rules like `sentence --> noun_phrase, verb_phrase.`
 - JSON output shaped for visualization panels
 
 ## Run in the browser
@@ -31,6 +32,21 @@ sum_to(N,Sum) :-
   N1 is N - 1,
   sum_to(N1,Prev),
   Sum is N + Prev.
+```
+
+Stage 3 grammar query example:
+
+```prolog
+sentence --> noun_phrase, verb_phrase.
+noun_phrase --> determiner, noun.
+verb_phrase --> verb, noun_phrase.
+determiner --> [the].
+determiner --> [a].
+noun --> [robot].
+noun --> [dragon].
+verb --> [builds].
+verb --> [finds].
+query: generate(sentence,S).
 ```
 
 ## Run tests
