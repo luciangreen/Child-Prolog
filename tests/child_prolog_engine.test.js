@@ -100,3 +100,29 @@ test("runs stage 4 formula discovery examples", () => {
     assert.match(result.steps.join(" "), new RegExp(`a\\(N\\) = ${escapeRegex(formula)}`));
   });
 });
+
+test("runs stage 5 graph transformation for apply(connect_grandparent)", () => {
+  const engine = createEngine();
+  const stage5Program = `node(a).
+node(b).
+node(c).
+edge(a,b).
+edge(b,c).
+rule(connect_grandparent) :-
+  edge(X,Y),
+  edge(Y,Z),
+  add_edge(X,Z).`;
+
+  const result = engine.resolve(stage5Program, "apply(connect_grandparent).");
+
+  assert.equal(result.success, true);
+  assert.equal(result.visual.type, "graph");
+  assert.match(result.answer, /added 1 edge/);
+  assert.deepEqual(result.solutions, [{}]);
+  assert.deepEqual(result.visual.data.addedEdges, [{ from: "a", to: "c" }]);
+  assert.ok(
+    result.visual.data.after.edges.some((edge) => edge.from === "a" && edge.to === "c")
+  );
+  assert.match(result.steps.join(" "), /Because a connects to b, and b connects to c,/);
+  assert.match(result.steps.join(" "), /shortcut from a to c/);
+});

@@ -715,6 +715,142 @@
       return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
     }
 
+    function edgeKey(from, to) {
+      return `${from}->${to}`;
+    }
+
+    function parseGraphProgram(clauses) {
+      const nodes = new Set();
+      const edges = [];
+      const edgeSeen = new Set();
+      const rules = new Map();
+
+      clauses.forEach((clause) => {
+        if (clause.head.type !== "compound") {
+          return;
+        }
+
+        if (clause.head.functor === "node" && clause.head.args.length === 1 && clause.body.length === 0) {
+          nodes.add(termToString(clause.head.args[0]));
+          return;
+        }
+
+        if (clause.head.functor === "edge" && clause.head.args.length === 2 && clause.body.length === 0) {
+          const from = termToString(clause.head.args[0]);
+          const to = termToString(clause.head.args[1]);
+          const key = edgeKey(from, to);
+          if (!edgeSeen.has(key)) {
+            edgeSeen.add(key);
+            edges.push({ from, to });
+          }
+          nodes.add(from);
+          nodes.add(to);
+          return;
+        }
+
+        if (clause.head.functor === "rule" && clause.head.args.length === 1) {
+          rules.set(termToString(clause.head.args[0]), clause.body);
+        }
+      });
+
+      return {
+        nodes: Array.from(nodes),
+        edges,
+        rules,
+      };
+    }
+
+    function applyGraphRule(ruleBody, edges) {
+      const edgeTerms = edges.map((edge) => ({
+        type: "compound",
+        functor: "edge",
+        args: [
+          { type: "atom", value: edge.from },
+          { type: "atom", value: edge.to },
+        ],
+      }));
+      const candidates = [];
+
+      function addCandidate(from, to, witnesses) {
+        candidates.push({ from, to, witnesses });
+      }
+
+      function walk(goalIndex, bindings, witnesses) {
+        if (goalIndex >= ruleBody.length) {
+          return;
+        }
+
+        const goal = ruleBody[goalIndex];
+        if (goal.type !== "compound") {
+          return;
+        }
+
+        if (goal.functor === "edge" && goal.args.length === 2) {
+          edgeTerms.forEach((edgeTerm) => {
+            const nextBindings = unify(goal, edgeTerm, bindings);
+            if (!nextBindings) {
+              return;
+            }
+            const witnessFrom = termToString(substitute(goal.args[0], nextBindings));
+            const witnessTo = termToString(substitute(goal.args[1], nextBindings));
+            walk(goalIndex + 1, nextBindings, witnesses.concat({ from: witnessFrom, to: witnessTo }));
+          });
+          return;
+        }
+
+        if (goal.functor === "add_edge" && goal.args.length === 2) {
+          const fromTerm = substitute(goal.args[0], bindings);
+          const toTerm = substitute(goal.args[1], bindings);
+          if (fromTerm.type === "var" || toTerm.type === "var") {
+            return;
+          }
+          addCandidate(termToString(fromTerm), termToString(toTerm), witnesses.slice());
+          walk(goalIndex + 1, bindings, witnesses);
+        }
+      }
+
+      walk(0, {}, []);
+
+      const deduped = [];
+      const seen = new Set();
+      candidates.forEach((candidate) => {
+        const key = edgeKey(candidate.from, candidate.to);
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        deduped.push(candidate);
+      });
+
+      return deduped;
+    }
+
+    function buildGraphSteps(ruleName, addedEdges) {
+      if (!addedEdges.length) {
+        return [`Applied ${ruleName}.`, "No new shortcut edges were needed."];
+      }
+
+      const lines = [];
+      addedEdges.forEach((edge) => {
+        const witnesses = edge.witnesses || [];
+        if (witnesses.length >= 2) {
+          const first = witnesses[0];
+          const second = witnesses[1];
+          lines.push(
+            `Because ${first.from} connects to ${first.to}, and ${second.from} connects to ${second.to},`
+          );
+          lines.push(`we can add a shortcut from ${edge.from} to ${edge.to}.`);
+        } else if (witnesses.length === 1) {
+          const only = witnesses[0];
+          lines.push(`Because ${only.from} connects to ${only.to},`);
+          lines.push(`we can add a shortcut from ${edge.from} to ${edge.to}.`);
+        } else {
+          lines.push(`We add a shortcut from ${edge.from} to ${edge.to}.`);
+        }
+      });
+      return lines;
+    }
+
     function gcdBigInt(left, right) {
       let a = left < 0n ? -left : left;
       let b = right < 0n ? -right : right;
@@ -1110,6 +1246,85 @@
             },
           };
         }
+      }
+
+      if (
+        query.type === "compound" &&
+        query.functor === "apply" &&
+        query.args.length === 1 &&
+        (query.args[0].type === "atom" || query.args[0].type === "number")
+      ) {
+        const clauses = parseProgram(programSource);
+        const graphProgram = parseGraphProgram(clauses);
+        const ruleName = termToString(query.args[0]);
+        const ruleBody = graphProgram.rules.get(ruleName);
+
+        if (!ruleBody) {
+          return {
+            query: termToString(query),
+            success: false,
+            answer: `No graph rule named ${ruleName} was found.`,
+            solutions: [],
+            steps: [`Please define rule(${ruleName}) with edge/2 and add_edge/2 goals.`],
+            visual: {
+              type: "graph",
+              data: {
+                query: termToString(query),
+                rule: ruleName,
+                before: {
+                  nodes: graphProgram.nodes,
+                  edges: graphProgram.edges,
+                },
+                after: {
+                  nodes: graphProgram.nodes,
+                  edges: graphProgram.edges,
+                },
+                addedEdges: [],
+                transformations: [],
+                compression: null,
+              },
+            },
+          };
+        }
+
+        const candidateEdges = applyGraphRule(ruleBody, graphProgram.edges);
+        const existingEdgeKeys = new Set(graphProgram.edges.map((edge) => edgeKey(edge.from, edge.to)));
+        const addedEdges = candidateEdges.filter((edge) => !existingEdgeKeys.has(edgeKey(edge.from, edge.to)));
+        const afterEdges = graphProgram.edges.concat(addedEdges.map((edge) => ({ from: edge.from, to: edge.to })));
+        const answer =
+          addedEdges.length > 0
+            ? `${ruleName} added ${addedEdges.length} edge${addedEdges.length === 1 ? "" : "s"}.`
+            : `${ruleName} did not add any new edges.`;
+
+        return {
+          query: termToString(query),
+          success: true,
+          answer,
+          solutions: [{}],
+          steps: buildGraphSteps(ruleName, addedEdges),
+          visual: {
+            type: "graph",
+            data: {
+              query: termToString(query),
+              rule: ruleName,
+              before: {
+                nodes: graphProgram.nodes,
+                edges: graphProgram.edges,
+              },
+              after: {
+                nodes: graphProgram.nodes,
+                edges: afterEdges,
+              },
+              addedEdges: addedEdges.map((edge) => ({ from: edge.from, to: edge.to })),
+              transformations: addedEdges.map((edge) => ({
+                type: "add_edge",
+                from: edge.from,
+                to: edge.to,
+              })),
+              compression: null,
+            },
+          },
+        };
       }
 
       const clauses = parseProgram(programSource);
