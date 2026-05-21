@@ -113,9 +113,13 @@
         }
 
         if (text === "_" || /^[A-Z_]/.test(text)) {
+          const variableName = text === "_" ? `_anon${anonymousCounter + 1}` : text;
+          if (text === "_") {
+            anonymousCounter += 1;
+          }
           return {
             type: "var",
-            name: text === "_" ? `_anon${anonymousCounter += 1}` : text,
+            name: variableName,
           };
         }
 
@@ -395,7 +399,8 @@
             return;
           }
 
-          const freshClause = freshenClause(clause, clauseCounter += 1);
+          clauseCounter += 1;
+          const freshClause = freshenClause(clause, clauseCounter);
           const unifiedBindings = unify(currentGoal, freshClause.head, bindings);
 
           if (!unifiedBindings) {
