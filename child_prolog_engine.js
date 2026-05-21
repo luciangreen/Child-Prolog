@@ -579,7 +579,7 @@
       return lines;
     }
 
-    function generateCfgDerivations(startSymbol, rules, maxItems) {
+    function generateCfgDerivations(startSymbol, rules, maxNodes) {
       let visitedNodes = 0;
 
       function matchesRuleHead(ruleHead, symbol) {
@@ -587,7 +587,7 @@
       }
 
       function expandItem(item, depth) {
-        if (visitedNodes >= maxItems || depth > settings.maxDepth) {
+        if (visitedNodes >= maxNodes || depth > settings.maxDepth) {
           return [];
         }
 
@@ -619,7 +619,7 @@
 
           results.forEach((base) => {
             itemExpansions.forEach((expansion) => {
-              if (next.length >= maxItems) {
+              if (next.length >= maxNodes) {
                 return;
               }
               next.push({
@@ -630,7 +630,7 @@
           });
 
           results = next;
-          if (!results.length || results.length >= maxItems) {
+          if (!results.length || results.length >= maxNodes) {
             break;
           }
         }
@@ -639,7 +639,7 @@
       }
 
       function expandSymbol(symbol, depth) {
-        if (visitedNodes >= maxItems || depth > settings.maxDepth) {
+        if (visitedNodes >= maxNodes || depth > settings.maxDepth) {
           return [];
         }
 
@@ -655,13 +655,13 @@
 
         const expansions = [];
         matchingRules.forEach((rule) => {
-          if (expansions.length >= maxItems) {
+          if (expansions.length >= maxNodes) {
             return;
           }
 
           const bodyExpansions = expandSequence(rule.body, depth + 1);
           bodyExpansions.forEach((bodyExpansion) => {
-            if (expansions.length >= maxItems) {
+            if (expansions.length >= maxNodes) {
               return;
             }
             expansions.push({
@@ -699,7 +699,7 @@
       }
 
       const raw = tokens.join(" ").replace(/\s+/g, " ").trim();
-      if (!raw) {
+      if (raw.length === 0) {
         return "";
       }
 
