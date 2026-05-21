@@ -1,0 +1,525 @@
+Below is a build-ready requirement.
+
+Project: Child-Prolog Lab
+
+A child-understandable Prolog system that explains symbolic reasoning through animated examples, recursive compression, grammar generation, graph transformation, Spec-to-Algorithm, Gaussian discovery, and web visualization.
+
+1. Goal
+
+Build a small educational Prolog + JavaScript system where a child can type simple logical rules and see:
+
+* what the rule means,
+* how recursion unfolds,
+* how repeated patterns compress,
+* how a grammar generates stories,
+* how graphs transform,
+* how formulas are discovered,
+* how a specification becomes an algorithm.
+
+The system should run in the browser using JavaScript, with a Prolog-like engine or a Prolog-to-JS layer.
+
+⸻
+
+2. Suggested Repository Structure
+
+child-prolog-lab/
+  README.md
+  index.html
+  app.js
+  visualizer.js
+  child_prolog_engine.js
+  examples/
+    recursive_compression.pl
+    cfg_story_generator.pl
+    gaussian_discovery.pl
+    graph_transform.pl
+    spec_to_algorithm.pl
+    symbolic_world.pl
+  tests/
+    examples.test.js
+  docs/
+    child_language.md
+    explanation_format.md
+
+⸻
+
+3. Core Requirement
+
+The system must support a child-friendly Prolog subset:
+
+fact(name).
+rule(X) :- condition(X).
+list([a,b,c]).
+
+It should also support explanations:
+
+explain(sum_to(5)).
+show_tree(fibonacci(5)).
+animate(graph_step(start)).
+
+Each execution should produce:
+
+{
+  "answer": "...",
+  "steps": ["...", "..."],
+  "visual": {
+    "type": "tree | graph | table | grammar | formula",
+    "data": {}
+  }
+}
+
+⸻
+
+4. Stage 1 — Minimal Browser Prolog Engine
+
+Requirement
+
+Create a tiny JavaScript Prolog-style interpreter supporting:
+
+* facts,
+* rules,
+* variables,
+* unification,
+* recursive calls,
+* trace collection,
+* JSON output for visualization.
+
+Example
+
+Input:
+
+parent(alice,bob).
+parent(bob,charlie).
+ancestor(X,Y) :- parent(X,Y).
+ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y).
+
+Query:
+
+ancestor(alice,charlie).
+
+Child explanation:
+
+Alice is Charlie's ancestor because:
+1. Alice is Bob's parent.
+2. Bob is Charlie's parent.
+3. So Alice is connected to Charlie through Bob.
+
+Visualization:
+
+Alice → Bob → Charlie
+
+⸻
+
+5. Stage 2 — Recursive Compression
+
+Requirement
+
+Show recursion as an expandable/compressible tree.
+
+Example file:
+
+sum_to(0,0).
+sum_to(N,Sum) :-
+  N > 0,
+  N1 is N - 1,
+  sum_to(N1,Prev),
+  Sum is N + Prev.
+
+Query:
+
+sum_to(5,S).
+
+Expected explanation:
+
+sum_to(5) means:
+5 + sum_to(4)
+5 + 4 + sum_to(3)
+5 + 4 + 3 + sum_to(2)
+5 + 4 + 3 + 2 + sum_to(1)
+5 + 4 + 3 + 2 + 1 + 0
+So the answer is 15.
+
+Compression explanation:
+
+The repeated idea is: keep adding the next smaller number.
+This compresses to:
+S = N(N+1)/2
+
+Formula:
+
+sum_to(N) = N * (N + 1) / 2
+
+⸻
+
+6. Stage 3 — CFG Generation
+
+Requirement
+
+Allow children to define simple grammars and generate sentences.
+
+Example:
+
+sentence --> noun_phrase, verb_phrase.
+noun_phrase --> determiner, noun.
+verb_phrase --> verb, noun_phrase.
+determiner --> [the].
+determiner --> [a].
+noun --> [robot].
+noun --> [dragon].
+verb --> [builds].
+verb --> [finds].
+
+Query:
+
+generate(sentence, S).
+
+Example output:
+
+The robot finds a dragon.
+A dragon builds the robot.
+
+Child explanation:
+
+A sentence is made from:
+1. a noun phrase
+2. a verb phrase
+A noun phrase is:
+1. a determiner
+2. a noun
+
+Visualization:
+
+sentence
+├── noun_phrase
+│   ├── the
+│   └── robot
+└── verb_phrase
+    ├── finds
+    └── noun_phrase
+        ├── a
+        └── dragon
+
+⸻
+
+7. Stage 4 — Gaussian Elimination for Recursive Discovery
+
+Requirement
+
+Given a sequence, infer a polynomial rule using finite differences or Gaussian elimination.
+
+Example input:
+
+discover_formula([1,4,9,16,25], Formula).
+
+Expected output:
+
+Formula: N^2
+
+Explanation:
+
+The numbers are:
+1, 4, 9, 16, 25
+First differences:
+3, 5, 7, 9
+Second differences:
+2, 2, 2
+Because the second difference is constant, the rule is quadratic.
+The discovered rule is:
+a(N) = N^2
+
+Working examples:
+
+[1, 2, 3, 4, 5]       → N
+[1, 4, 9, 16, 25]     → N^2
+[1, 8, 27, 64, 125]   → N^3
+[2, 4, 6, 8, 10]      → 2N
+[3, 6, 11, 18, 27]    → N^2 + 2
+
+⸻
+
+8. Stage 5 — Graph Transformations
+
+Requirement
+
+Represent graphs as facts and animate transformations.
+
+Example:
+
+node(a).
+node(b).
+node(c).
+edge(a,b).
+edge(b,c).
+rule(connect_grandparent) :-
+  edge(X,Y),
+  edge(Y,Z),
+  add_edge(X,Z).
+
+Query:
+
+apply(connect_grandparent).
+
+Before:
+
+a → b → c
+
+After:
+
+a → b → c
+a → c
+
+Child explanation:
+
+Because A connects to B, and B connects to C,
+we can add a shortcut from A to C.
+
+Applications:
+
+* family trees,
+* maps,
+* transport networks,
+* proof dependency graphs,
+* grammar derivation trees,
+* symbolic transformations.
+
+⸻
+
+9. Stage 6 — Spec-to-Algorithm
+
+Requirement
+
+Allow a child to write a plain-language-like specification and generate simple logic.
+
+Example spec:
+
+Find the biggest number in a list.
+
+Generated child Prolog:
+
+biggest([X], X).
+biggest([X|Rest], Biggest) :-
+  biggest(Rest, RestBiggest),
+  max(X, RestBiggest, Biggest).
+
+Explanation:
+
+To find the biggest number:
+1. If the list has one number, that number is biggest.
+2. Otherwise, find the biggest number in the rest of the list.
+3. Compare the first number with that result.
+
+Visualization:
+
+[3, 8, 2, 5]
+compare 3 with biggest([8,2,5])
+compare 8 with biggest([2,5])
+compare 2 with biggest([5])
+answer = 8
+
+⸻
+
+10. Stage 7 — Executable Symbolic Worlds
+
+Requirement
+
+Let children define symbolic worlds using rules.
+
+Example:
+
+room(garden).
+room(cave).
+room(tower).
+path(garden,cave).
+path(cave,tower).
+has_key(garden).
+locked(tower).
+can_enter(Room) :-
+  room(Room),
+  not(locked(Room)).
+can_enter(tower) :-
+  has_key(garden).
+
+Query:
+
+can_enter(tower).
+
+Explanation:
+
+You can enter the tower because the garden has a key.
+The key unlocks the tower.
+
+Visualization:
+
+Garden 🔑 → Cave → Tower 🔒➡️🔓
+
+⸻
+
+11. Stage 8 — Semantic Visualization
+
+Requirement
+
+Build a JavaScript visualization panel with modes:
+
+Tree View        recursion, proofs, grammar derivations
+Graph View       nodes, edges, transformations
+Table View       sequence discovery, finite differences
+Formula View     compressed rule
+Trace View       step-by-step reasoning
+
+Recommended libraries:
+
+D3.js for graphs
+SVG for simple animations
+CodeMirror or Monaco for editing
+Plain HTML/CSS for child-friendly UI
+
+⸻
+
+12. Minimal Web Example
+
+index.html
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Child Prolog Lab</title>
+  <style>
+    body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; }
+    textarea { width: 45%; height: 400px; font-size: 16px; }
+    #output { width: 45%; border: 1px solid #ccc; padding: 15px; }
+    .step { margin: 8px 0; padding: 8px; background: #f3f3f3; }
+  </style>
+</head>
+<body>
+  <textarea id="code">
+sum_to(0,0).
+sum_to(N,S) :- N > 0, N1 is N-1, sum_to(N1,P), S is N+P.
+query: sum_to(5,S).
+  </textarea>
+  <div>
+    <button onclick="runExample()">Run</button>
+    <div id="output"></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
+
+app.js
+
+function runExample() {
+  const output = document.getElementById("output");
+  const steps = [
+    "sum_to(5) = 5 + sum_to(4)",
+    "sum_to(4) = 4 + sum_to(3)",
+    "sum_to(3) = 3 + sum_to(2)",
+    "sum_to(2) = 2 + sum_to(1)",
+    "sum_to(1) = 1 + sum_to(0)",
+    "sum_to(0) = 0",
+    "So: 5 + 4 + 3 + 2 + 1 + 0 = 15",
+    "Compressed rule: N(N+1)/2"
+  ];
+  output.innerHTML = `
+    <h2>Answer: S = 15</h2>
+    <h3>Explanation</h3>
+    ${steps.map(s => `<div class="step">${s}</div>`).join("")}
+    <h3>Visual Compression</h3>
+    <svg width="400" height="120">
+      <text x="10" y="30">5 + 4 + 3 + 2 + 1</text>
+      <text x="10" y="70">↓ compresses to ↓</text>
+      <text x="10" y="110">N(N+1)/2</text>
+    </svg>
+  `;
+}
+
+⸻
+
+13. Good Working Demo Set
+
+Demo 1 — Recursive Compression
+
+Input:
+sum_to(5,S).
+Output:
+S = 15
+Explanation:
+Repeated adding compresses to N(N+1)/2.
+
+Demo 2 — CFG Story Generator
+
+Input:
+generate(sentence,S).
+Output:
+"The robot finds a dragon."
+Visualization:
+sentence → noun phrase + verb phrase
+
+Demo 3 — Formula Discovery
+
+Input:
+discover_formula([1,4,9,16,25],F).
+Output:
+F = N^2
+
+Demo 4 — Graph Transformation
+
+Input:
+apply(connect_grandparent).
+Output:
+a → c is added because a → b and b → c.
+
+Demo 5 — Spec-to-Algorithm
+
+Input:
+"Find the biggest number in a list."
+Output:
+Generated recursive algorithm.
+
+Demo 6 — Symbolic World
+
+Input:
+can_enter(tower).
+Output:
+Yes, because the key is in the garden.
+
+⸻
+
+14. GitHub Agent Task Prompt
+
+Create a repository called child-prolog-lab.
+Build a browser-based child-understandable Prolog education system.
+Requirements:
+1. Implement a simple Prolog-like rule/fact/query format.
+2. Provide hardcoded but working example runners for:
+   - recursive compression
+   - CFG generation
+   - Gaussian/finite-difference formula discovery
+   - graph transformations
+   - Spec-to-Algorithm
+   - executable symbolic worlds
+   - semantic visualization
+3. Create index.html, app.js, visualizer.js, and examples/*.pl.
+4. Add a visual output panel with Tree, Graph, Table, Formula, and Trace views.
+5. Use plain JavaScript and SVG first. Avoid heavy dependencies unless necessary.
+6. Include child-friendly explanations for every example.
+7. Include a README with setup instructions.
+8. Make all examples runnable by clicking buttons in the browser.
+9. Include tests for formula discovery and graph transformation.
+10. Keep the code simple and extensible.
+
+⸻
+
+15. Core Innovation
+
+The novel angle is:
+
+Prolog is not just used to compute answers; it is used to make reasoning visible.
+
+This makes the system useful for:
+
+* children learning logic,
+* visual theorem discovery,
+* symbolic AI education,
+* recursive algorithm explanation,
+* Spec-to-Algorithm systems,
+* semantic visualization,
+* and future proof assistants that explain why a conclusion follows.
