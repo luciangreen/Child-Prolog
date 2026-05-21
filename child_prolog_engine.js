@@ -550,7 +550,6 @@
 
     function generateCfgDerivations(startSymbol, rules, maxItems) {
       let visitedNodes = 0;
-      const startText = termToString(startSymbol);
 
       function matchesRuleHead(ruleHead, symbol) {
         return termToString(ruleHead) === termToString(symbol);
