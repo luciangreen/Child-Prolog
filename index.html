@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Child Prolog Stage 7</title>
+  <title>Child Prolog Stage 8</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -39,7 +39,8 @@
     }
 
     textarea,
-    input {
+    input,
+    select {
       width: 100%;
       box-sizing: border-box;
       border: 1px solid #cbd5e1;
@@ -76,6 +77,18 @@
       overflow: auto;
     }
 
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
     @media (max-width: 900px) {
       main {
         grid-template-columns: 1fr;
@@ -86,8 +99,8 @@
 <body>
   <main>
     <section>
-      <h1>Child Prolog Lab — Stage 7</h1>
-      <p>Run recursive examples like <code>sum_to(5,S).</code>, grammar queries like <code>generate(sentence,S).</code>, formula discovery queries like <code>discover_formula([1,4,9,16,25],F).</code>, graph transforms like <code>apply(connect_grandparent).</code>, spec-to-algorithm prompts like <code>Find the biggest number in a list.</code>, or symbolic world queries like <code>can_enter(tower).</code></p>
+      <h1>Child Prolog Lab — Stage 8</h1>
+      <p>Run recursive examples like <code>sum_to(5,S).</code>, grammar queries like <code>generate(sentence,S).</code>, formula discovery queries like <code>discover_formula([1,4,9,16,25],F).</code>, graph transforms like <code>apply(connect_grandparent).</code>, spec-to-algorithm prompts like <code>Find the biggest number in a list.</code>, or symbolic world queries like <code>can_enter(tower).</code> and explore them with semantic visualization modes.</p>
       <label for="program">Program</label>
       <textarea id="program"></textarea>
       <label for="query">Query</label>
@@ -109,12 +122,16 @@
         <div id="solutions"></div>
       </div>
       <div class="panel">
-        <h2>Proof tree</h2>
-        <div id="tree"></div>
-      </div>
-      <div class="panel">
-        <h2>Pattern / Algorithm</h2>
-        <div id="compression"></div>
+        <h2>Semantic visualization</h2>
+        <label for="semanticMode">Mode</label>
+        <select id="semanticMode">
+          <option value="tree">Tree View</option>
+          <option value="graph">Graph View</option>
+          <option value="table">Table View</option>
+          <option value="formula">Formula View</option>
+          <option value="trace">Trace View</option>
+        </select>
+        <div id="semantic"></div>
       </div>
       <div class="panel">
         <h2>JSON output</h2>
