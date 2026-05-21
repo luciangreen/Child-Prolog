@@ -1089,6 +1089,10 @@
         .replace(/\.\s*$/, "");
     }
 
+    function stripTrailingSentencePeriod(text) {
+      return text.replace(/\.\s*$/, "");
+    }
+
     const specToAlgorithmRegistry = [
       {
         label: "Find the biggest number in a list.",
@@ -1237,7 +1241,7 @@
       };
     }
 
-    function resolve(programSource, querySource) {
+    function parseQueryWithSpecRequest(querySource) {
       const rawSpecificationText = normalizeQuerySourceText(querySource);
       const rawSpecificationRequest = detectSpecToAlgorithmRequest({
         type: "atom",
@@ -1245,15 +1249,25 @@
       });
 
       if (rawSpecificationRequest) {
-        return resolveSpecToAlgorithm(
-          { type: "atom", value: rawSpecificationRequest.entry.label.replace(/\.$/, "") },
-          rawSpecificationRequest
-        );
+        return {
+          query: {
+            type: "atom",
+            value: stripTrailingSentencePeriod(rawSpecificationRequest.entry.label),
+          },
+          request: rawSpecificationRequest,
+        };
       }
 
       const query = parseQuery(querySource);
+      return {
+        query,
+        request: detectSpecToAlgorithmRequest(query),
+      };
+    }
+
+    function resolve(programSource, querySource) {
+      const { query, request: specToAlgorithmRequest } = parseQueryWithSpecRequest(querySource);
       const queryVariables = collectQueryVariables(query);
-      const specToAlgorithmRequest = detectSpecToAlgorithmRequest(query);
 
       if (specToAlgorithmRequest) {
         return resolveSpecToAlgorithm(query, specToAlgorithmRequest);
