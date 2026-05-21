@@ -1089,19 +1089,33 @@
         .replace(/\.\s*$/, "");
     }
 
-    function detectSpecToAlgorithmRequest(query) {
-      const biggestSpecTexts = new Set([
-        "find the biggest number in a list",
-        "find biggest number in a list",
-        "biggest number in a list",
-      ]);
+    const specToAlgorithmRegistry = [
+      {
+        key: "biggest_number_in_a_list",
+        label: "Find the biggest number in a list.",
+        variations: [
+          "find the biggest number in a list",
+          "find biggest number in a list",
+          "biggest number in a list",
+        ],
+        buildGeneratedProgram: buildBiggestNumberAlgorithm,
+        buildSampleTrace: function () {
+          return buildBiggestNumberTrace([3, 8, 2, 5]);
+        },
+      },
+    ];
 
-      if (query.type === "atom" && biggestSpecTexts.has(normalizeSpecificationText(query.value))) {
-        return {
-          key: "biggest_number_in_a_list",
-          label: "Find the biggest number in a list.",
-          target: null,
-        };
+    function detectSpecToAlgorithmRequest(query) {
+      if (query.type === "atom") {
+        const match = specToAlgorithmRegistry.find((entry) =>
+          entry.variations.includes(normalizeSpecificationText(query.value))
+        );
+        if (match) {
+          return {
+            entry: match,
+            target: null,
+          };
+        }
       }
 
       if (
@@ -1110,11 +1124,12 @@
         query.args.length === 2 &&
         query.args[0].type === "atom"
       ) {
-        const normalized = normalizeSpecificationText(query.args[0].value);
-        if (biggestSpecTexts.has(normalized)) {
+        const match = specToAlgorithmRegistry.find((entry) =>
+          entry.variations.includes(normalizeSpecificationText(query.args[0].value))
+        );
+        if (match) {
           return {
-            key: "biggest_number_in_a_list",
-            label: "Find the biggest number in a list.",
+            entry: match,
             target: query.args[1],
           };
         }
@@ -1181,13 +1196,14 @@
     }
 
     function resolveSpecToAlgorithm(query, request) {
-      if (request.key !== "biggest_number_in_a_list") {
+      const { entry } = request;
+      if (!entry) {
         return null;
       }
 
-      const generatedProgramLines = buildBiggestNumberAlgorithm();
+      const generatedProgramLines = entry.buildGeneratedProgram();
       const generatedProgram = generatedProgramLines.join("\n");
-      const sampleTrace = buildBiggestNumberTrace([3, 8, 2, 5]);
+      const sampleTrace = entry.buildSampleTrace();
       const target = request.target;
       const targetName = target && target.type === "var" ? target.name : null;
       const solutions = targetName ? [{ [targetName]: generatedProgram }] : [{}];
@@ -1205,13 +1221,13 @@
           "1. If the list has one number, that number is biggest.",
           "2. Otherwise, find the biggest number in the rest of the list.",
           "3. Compare the first number with that result.",
-          "Generated child Prolog:",
+          "Generated Child Prolog:",
         ].concat(generatedProgramLines),
         visual: {
           type: "tree",
           data: {
             query: termToString(query),
-            specification: request.label,
+            specification: entry.label,
             generatedProgram,
             generatedProgramLines,
             sampleTrace: {
@@ -1237,7 +1253,7 @@
 
       if (rawSpecificationRequest) {
         return resolveSpecToAlgorithm(
-          { type: "atom", value: rawSpecificationRequest.label.replace(/\.$/, "") },
+          { type: "atom", value: rawSpecificationRequest.entry.label.replace(/\.$/, "") },
           rawSpecificationRequest
         );
       }
