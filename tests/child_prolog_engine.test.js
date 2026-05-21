@@ -72,6 +72,7 @@ verb --> [finds].`;
   assert.match(result.steps.join(" "), /A noun phrase is:/);
   assert.ok(result.solutions.length >= 2);
   assert.match(result.solutions[0].S, /^[A-Z].*\.$/);
+  assert.ok(result.solutions.every((solution) => /^[A-Z].*\.$/.test(solution.S)));
   const generated = result.solutions.map((solution) => solution.S);
   assert.ok(generated.includes("The robot finds a dragon."));
 });

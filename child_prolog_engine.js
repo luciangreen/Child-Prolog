@@ -699,7 +699,7 @@
         return "";
       }
 
-      const raw = tokens.join(" ").replace(/\s+/g, " ").trim();
+      const raw = tokens.join(" ").trim();
       if (raw.length < 1) {
         return "";
       }
