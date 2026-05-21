@@ -537,15 +537,46 @@
       return rules;
     }
 
-    function buildCfgExplanation() {
-      return [
-        "A sentence is made from:",
-        "1. a noun phrase",
-        "2. a verb phrase",
-        "A noun phrase is:",
-        "1. a determiner",
-        "2. a noun",
-      ];
+    function buildCfgExplanation(startSymbol, rules) {
+      const lines = [];
+
+      function prettify(symbolText) {
+        return symbolText.replace(/_/g, " ");
+      }
+
+      function listRuleParts(rule) {
+        return rule.body.map((part) => prettify(termToString(part)));
+      }
+
+      function findRuleFor(symbol) {
+        const symbolText = termToString(symbol);
+        return rules.find((rule) => termToString(rule.head) === symbolText) || null;
+      }
+
+      const startRule = findRuleFor(startSymbol);
+      if (!startRule) {
+        return lines;
+      }
+
+      const startText = prettify(termToString(startSymbol));
+      lines.push(`A ${startText} is made from:`);
+      listRuleParts(startRule).forEach((part, index) => {
+        lines.push(`${index + 1}. a ${part}`);
+      });
+
+      const explainablePart = startRule.body.find((part) => part.type === "atom" || part.type === "compound");
+      if (explainablePart) {
+        const detailRule = findRuleFor(explainablePart);
+        if (detailRule) {
+          const detailText = prettify(termToString(explainablePart));
+          lines.push(`A ${detailText} is:`);
+          listRuleParts(detailRule).forEach((part, index) => {
+            lines.push(`${index + 1}. a ${part}`);
+          });
+        }
+      }
+
+      return lines;
     }
 
     function generateCfgDerivations(startSymbol, rules, maxItems) {
@@ -672,7 +703,8 @@
         return "";
       }
 
-      return `${raw[0].toUpperCase()}${raw.slice(1)}.`;
+      const capitalized = `${raw[0].toUpperCase()}${raw.slice(1)}`;
+      return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
     }
 
     function resolve(programSource, querySource) {
@@ -705,7 +737,7 @@
                 .map(() => ({}));
           const success = solutions.length > 0;
           const exampleCount = Math.min(2, generated.length);
-          const stage3Steps = buildCfgExplanation();
+          const stage3Steps = buildCfgExplanation(query.args[0], grammarRules);
           for (let index = 0; index < exampleCount; index += 1) {
             stage3Steps.push(`Example ${index + 1}: ${generated[index].sentence}`);
           }
