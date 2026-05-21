@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Child Prolog Stage 1</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f7f8fc;
+      color: #1f2937;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    section,
+    aside {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    h1,
+    h2 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin: 10px 0 6px;
+    }
+
+    textarea,
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 220px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 12px;
+      border: 0;
+      border-radius: 999px;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 10px 18px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .panel {
+      margin-bottom: 16px;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      overflow: auto;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Child Prolog Lab — Stage 1</h1>
+      <p>Type a few facts and rules, then ask a query to see the proof trace and JSON result.</p>
+      <label for="program">Program</label>
+      <textarea id="program"></textarea>
+      <label for="query">Query</label>
+      <input id="query" type="text">
+      <button id="run" type="button">Run query</button>
+    </section>
+
+    <aside>
+      <div class="panel">
+        <h2>Answer</h2>
+        <div id="answer"></div>
+      </div>
+      <div class="panel">
+        <h2>Steps</h2>
+        <ol id="steps"></ol>
+      </div>
+      <div class="panel">
+        <h2>Solutions</h2>
+        <div id="solutions"></div>
+      </div>
+      <div class="panel">
+        <h2>Proof tree</h2>
+        <div id="tree"></div>
+      </div>
+      <div class="panel">
+        <h2>JSON output</h2>
+        <pre id="raw"></pre>
+      </div>
+    </aside>
+  </main>
+
+  <script src="./child_prolog_engine.js"></script>
+  <script src="./visualizer.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
