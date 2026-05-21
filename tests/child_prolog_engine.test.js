@@ -51,3 +51,28 @@ sum_to(N,Sum) :-
   assert.match(result.steps.join(" "), /S = N\(N\+1\)\/2/);
   assert.equal(result.visual.data.compression.formula, "sum_to(N) = N * (N + 1) / 2");
 });
+
+test("runs stage 3 CFG generation for generate(sentence,S)", () => {
+  const engine = createEngine();
+  const stage3Program = `sentence --> noun_phrase, verb_phrase.
+noun_phrase --> determiner, noun.
+verb_phrase --> verb, noun_phrase.
+determiner --> [the].
+determiner --> [a].
+noun --> [robot].
+noun --> [dragon].
+verb --> [builds].
+verb --> [finds].`;
+
+  const result = engine.resolve(stage3Program, "generate(sentence,S).");
+
+  assert.equal(result.success, true);
+  assert.equal(result.visual.type, "grammar");
+  assert.match(result.steps.join(" "), /A sentence is made from:/);
+  assert.match(result.steps.join(" "), /A noun phrase is:/);
+  assert.ok(result.solutions.length >= 2);
+  assert.match(result.solutions[0].S, /^[A-Z].*\.$/);
+  assert.ok(result.solutions.every((solution) => /^[A-Z].*\.$/.test(solution.S)));
+  const generated = result.solutions.map((solution) => solution.S);
+  assert.ok(generated.includes("The robot finds a dragon."));
+});

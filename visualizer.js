@@ -27,7 +27,7 @@
 
   function renderTree(container, visual) {
     container.innerHTML = "";
-    const trees = visual?.data?.proofTrees || [];
+    const trees = visual?.data?.proofTrees || visual?.data?.derivationTrees || [];
 
     if (!trees.length) {
       container.textContent = "No proof tree yet.";
