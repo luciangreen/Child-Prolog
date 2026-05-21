@@ -1,6 +1,6 @@
 # Child-Prolog
 
-Stage 4 now includes formula discovery on top of Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
+Stage 5 now includes graph transformations on top of Stage 4 formula discovery, Stage 3 CFG sentence generation, Stage 2 recursive compression, and the Stage 1 engine.
 
 ## Features
 
@@ -12,6 +12,7 @@ Stage 4 now includes formula discovery on top of Stage 3 CFG sentence generation
 - stage-2 recursive compression summary for `sum_to(N,S)`
 - stage-3 CFG generation using grammar rules like `sentence --> noun_phrase, verb_phrase.`
 - stage-4 formula discovery with `discover_formula([1,4,9,16,25],F).`
+- stage-5 graph transformations with `apply(connect_grandparent).`
 - JSON output shaped for visualization panels
 
 ## Run in the browser
@@ -54,6 +55,21 @@ Stage 4 formula discovery query example:
 
 ```prolog
 query: discover_formula([1,4,9,16,25],F).
+```
+
+Stage 5 graph transformation query example:
+
+```prolog
+node(a).
+node(b).
+node(c).
+edge(a,b).
+edge(b,c).
+rule(connect_grandparent) :-
+  edge(X,Y),
+  edge(Y,Z),
+  add_edge(X,Z).
+query: apply(connect_grandparent).
 ```
 
 ## Run tests

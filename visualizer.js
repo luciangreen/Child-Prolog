@@ -46,6 +46,67 @@
     container.appendChild(list);
   }
 
+  function renderGraph(container, visualData) {
+    container.innerHTML = "";
+    const beforeEdges = visualData?.before?.edges || [];
+    const afterEdges = visualData?.after?.edges || [];
+    const addedEdges = visualData?.addedEdges || [];
+
+    const beforeTitle = document.createElement("div");
+    beforeTitle.textContent = "Before:";
+    container.appendChild(beforeTitle);
+
+    const beforeList = document.createElement("ul");
+    if (!beforeEdges.length) {
+      const emptyItem = document.createElement("li");
+      emptyItem.textContent = "No edges.";
+      beforeList.appendChild(emptyItem);
+    } else {
+      beforeEdges.forEach((edge) => {
+        const item = document.createElement("li");
+        item.textContent = `${edge.from} → ${edge.to}`;
+        beforeList.appendChild(item);
+      });
+    }
+    container.appendChild(beforeList);
+
+    const afterTitle = document.createElement("div");
+    afterTitle.textContent = "After:";
+    container.appendChild(afterTitle);
+
+    const afterList = document.createElement("ul");
+    if (!afterEdges.length) {
+      const emptyItem = document.createElement("li");
+      emptyItem.textContent = "No edges.";
+      afterList.appendChild(emptyItem);
+    } else {
+      afterEdges.forEach((edge) => {
+        const item = document.createElement("li");
+        item.textContent = `${edge.from} → ${edge.to}`;
+        afterList.appendChild(item);
+      });
+    }
+    container.appendChild(afterList);
+
+    const addedTitle = document.createElement("div");
+    addedTitle.textContent = "Added edges:";
+    container.appendChild(addedTitle);
+
+    const addedList = document.createElement("ul");
+    if (!addedEdges.length) {
+      const emptyItem = document.createElement("li");
+      emptyItem.textContent = "No new edges.";
+      addedList.appendChild(emptyItem);
+    } else {
+      addedEdges.forEach((edge) => {
+        const item = document.createElement("li");
+        item.textContent = `${edge.from} → ${edge.to}`;
+        addedList.appendChild(item);
+      });
+    }
+    container.appendChild(addedList);
+  }
+
   function renderCompression(container, compression) {
     container.innerHTML = "";
 
@@ -109,7 +170,11 @@
     });
 
     renderSolutions(elements.solutions, result.solutions);
-    renderTree(elements.tree, result.visual);
+    if (result.visual?.type === "graph") {
+      renderGraph(elements.tree, result.visual?.data);
+    } else {
+      renderTree(elements.tree, result.visual);
+    }
     if (elements.compression) {
       renderCompression(elements.compression, result.visual?.data?.compression);
     }
