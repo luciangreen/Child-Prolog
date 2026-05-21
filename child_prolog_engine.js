@@ -914,7 +914,7 @@
       const steps = [];
 
       if (!success) {
-        steps.push(`You cannot enter the ${queryRoom} yet.`);
+        steps.push(`You cannot enter the ${queryRoom}.`);
       } else if (queryRoom && isLocked && keyRoom) {
         steps.push(`You can enter the ${queryRoom} because the ${keyRoom} has a key.`);
         steps.push(`The key unlocks the ${queryRoom}.`);
