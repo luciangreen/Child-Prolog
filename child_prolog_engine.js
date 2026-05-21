@@ -945,7 +945,7 @@
             edges: world.paths,
           },
           addedEdges: [],
-          unlockedRooms: success && queryRoom && isLocked ? [queryRoom] : [],
+          unlockedByKeyRooms: success && queryRoom && isLocked ? [queryRoom] : [],
           compression: null,
         },
       };
@@ -1697,7 +1697,7 @@
           const negatedGoal = substitute(currentGoal.args[0], bindings);
           const negatedSolutions = prove([negatedGoal], bindings, [], depth + 1);
           if (!negatedSolutions.length) {
-            const stepText = `Check ${currentGoalText}: ${termToString(negatedGoal)} is false, so ${currentGoalText} is true.`;
+            const stepText = `Check ${currentGoalText}: ${termToString(negatedGoal)} does not happen, so ${currentGoalText} works.`;
             const childSolutions = prove(remainingGoals, bindings, steps.concat(stepText), depth + 1);
             childSolutions.forEach((solution) => {
               localSolutions.push({

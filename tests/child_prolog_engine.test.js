@@ -182,7 +182,7 @@ can_enter(tower) :-
   assert.equal(result.visual.type, "graph");
   assert.match(result.steps.join(" "), /You can enter the tower because the garden has a key\./);
   assert.match(result.steps.join(" "), /The key unlocks the tower\./);
-  assert.deepEqual(result.visual.data.unlockedRooms, ["tower"]);
+  assert.deepEqual(result.visual.data.unlockedByKeyRooms, ["tower"]);
   assert.ok(result.visual.data.before.edges.some((edge) => edge.from === "garden" && edge.to === "cave"));
   assert.ok(result.visual.data.before.edges.some((edge) => edge.from === "cave" && edge.to === "tower"));
 });
