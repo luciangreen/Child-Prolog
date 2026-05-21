@@ -3,6 +3,10 @@ const assert = require("node:assert/strict");
 
 const { createEngine } = require("../child_prolog_engine.js");
 
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const program = `parent(alice,bob).
 parent(bob,charlie).
 ancestor(X,Y) :- parent(X,Y).
@@ -93,6 +97,6 @@ test("runs stage 4 formula discovery examples", () => {
     assert.equal(result.visual.type, "formula");
     assert.deepEqual(result.solutions, [{ F: formula }]);
     assert.match(result.steps.join(" "), /The discovered rule is:/);
-    assert.match(result.steps.join(" "), new RegExp(`a\\(N\\) = ${formula.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    assert.match(result.steps.join(" "), new RegExp(`a\\(N\\) = ${escapeRegex(formula)}`));
   });
 });

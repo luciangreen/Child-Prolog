@@ -884,6 +884,20 @@
       if (index > 0 && index <= names.length) {
         return names[index - 1];
       }
+      const mod100 = index % 100;
+      if (mod100 >= 11 && mod100 <= 13) {
+        return `${index}th`;
+      }
+      const mod10 = index % 10;
+      if (mod10 === 1) {
+        return `${index}st`;
+      }
+      if (mod10 === 2) {
+        return `${index}nd`;
+      }
+      if (mod10 === 3) {
+        return `${index}rd`;
+      }
       return `${index}th`;
     }
 
