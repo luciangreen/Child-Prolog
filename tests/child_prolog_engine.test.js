@@ -126,3 +126,36 @@ rule(connect_grandparent) :-
   assert.match(result.steps.join(" "), /Because a connects to b, and b connects to c,/);
   assert.match(result.steps.join(" "), /shortcut from a to c/);
 });
+
+test("runs stage 6 spec-to-algorithm from a plain-language specification", () => {
+  const engine = createEngine();
+  const result = engine.resolve("", "Find the biggest number in a list.");
+
+  assert.equal(result.success, true);
+  assert.equal(result.answer, "Generated a recursive algorithm for finding the biggest number in a list.");
+  assert.deepEqual(result.solutions, [{}]);
+  assert.equal(result.visual.type, "tree");
+  assert.match(result.steps.join(" "), /If the list has one number, that number is biggest/);
+  assert.match(result.visual.data.generatedProgram, /biggest\(\[X\], X\)\./);
+  assert.match(result.visual.data.generatedProgram, /biggest\(\[X\|Rest\], Biggest\) :-/);
+  assert.deepEqual(result.visual.data.sampleTrace.comparisons, [
+    "compare 3 with biggest([8,2,5])",
+    "compare 8 with biggest([2,5])",
+    "compare 2 with biggest([5])",
+    "answer = 8",
+  ]);
+});
+
+test("binds the generated algorithm for stage 6 spec_to_algorithm/2 queries", () => {
+  const engine = createEngine();
+  const result = engine.resolve("", "spec_to_algorithm(find_the_biggest_number_in_a_list, Algorithm).");
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.solutions, [{
+    Algorithm: `biggest([X], X).
+biggest([X|Rest], Biggest) :-
+  biggest(Rest, RestBiggest),
+  max(X, RestBiggest, Biggest).`,
+  }]);
+  assert.equal(result.visual.data.specification, "Find the biggest number in a list.");
+});

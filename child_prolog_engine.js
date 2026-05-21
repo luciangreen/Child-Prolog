@@ -1073,9 +1073,205 @@
       return terms.length ? terms.join(" ") : "0";
     }
 
-    function resolve(programSource, querySource) {
+    function normalizeSpecificationText(text) {
+      return text
+        .toLowerCase()
+        .replace(/_/g, " ")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    }
+
+    function normalizeQuerySourceText(source) {
+      return source
+        .trim()
+        .replace(/^\?\-\s*/, "")
+        .replace(/^query:\s*/i, "")
+        .replace(/\.\s*$/, "");
+    }
+
+    function stripTrailingSentencePeriod(text) {
+      return text.replace(/\.\s*$/, "");
+    }
+
+    const specToAlgorithmRegistry = [
+      {
+        label: "Find the biggest number in a list.",
+        variations: [
+          "find the biggest number in a list",
+          "find biggest number in a list",
+          "biggest number in a list",
+        ],
+        buildGeneratedProgram: buildBiggestNumberAlgorithm,
+        buildSampleTrace: function () {
+          return buildBiggestNumberTrace([3, 8, 2, 5]);
+        },
+      },
+    ];
+
+    function detectSpecToAlgorithmRequest(query) {
+      if (query.type === "atom") {
+        const match = specToAlgorithmRegistry.find((entry) =>
+          entry.variations.includes(normalizeSpecificationText(query.value))
+        );
+        if (match) {
+          return {
+            entry: match,
+            target: null,
+          };
+        }
+      }
+
+      if (
+        query.type === "compound" &&
+        query.functor === "spec_to_algorithm" &&
+        query.args.length === 2 &&
+        query.args[0].type === "atom"
+      ) {
+        const match = specToAlgorithmRegistry.find((entry) =>
+          entry.variations.includes(normalizeSpecificationText(query.args[0].value))
+        );
+        if (match) {
+          return {
+            entry: match,
+            target: query.args[1],
+          };
+        }
+      }
+
+      return null;
+    }
+
+    function buildBiggestNumberAlgorithm() {
+      return [
+        "biggest([X], X).",
+        "biggest([X|Rest], Biggest) :-",
+        "  biggest(Rest, RestBiggest),",
+        "  max(X, RestBiggest, Biggest).",
+      ];
+    }
+
+    function buildBiggestNumberTrace(numbers) {
+      function walk(index) {
+        const current = numbers[index];
+        const remaining = numbers.slice(index);
+
+        if (index === numbers.length - 1) {
+          return {
+            biggest: current,
+            comparisons: [],
+            tree: {
+              goal: `biggest([${remaining.join(",")}]) = ${current}`,
+              children: [],
+            },
+          };
+        }
+
+        const rest = walk(index + 1);
+        const biggest = Math.max(current, rest.biggest);
+        return {
+          biggest,
+          comparisons: [`compare ${current} with biggest([${numbers.slice(index + 1).join(",")}])`].concat(rest.comparisons),
+          tree: {
+            goal: `compare ${current} with biggest([${numbers.slice(index + 1).join(",")}])`,
+            children: [
+              rest.tree,
+              {
+                goal: `max(${current}, ${rest.biggest}) = ${biggest}`,
+                children: [],
+              },
+            ],
+          },
+        };
+      }
+
+      const trace = walk(0);
+      return {
+        list: numbers.slice(),
+        biggest: trace.biggest,
+        comparisons: trace.comparisons.concat(`answer = ${trace.biggest}`),
+        tree: trace.tree,
+      };
+    }
+
+    function resolveSpecToAlgorithm(query, request) {
+      const { entry } = request;
+      if (!entry) {
+        return null;
+      }
+
+      const generatedProgramLines = entry.buildGeneratedProgram();
+      const generatedProgram = generatedProgramLines.join("\n");
+      const sampleTrace = entry.buildSampleTrace();
+      const target = request.target;
+      const targetName = target && target.type === "var" ? target.name : null;
+      const solutions = targetName ? [{ [targetName]: generatedProgram }] : [{}];
+      const answer = targetName
+        ? `${targetName} = generated recursive algorithm.`
+        : "Generated a recursive algorithm for finding the biggest number in a list.";
+
+      return {
+        query: termToString(query),
+        success: true,
+        answer,
+        solutions,
+        steps: [
+          "To find the biggest number:",
+          "1. If the list has one number, that number is biggest.",
+          "2. Otherwise, find the biggest number in the rest of the list.",
+          "3. Compare the first number with that result.",
+          "Generated Child Prolog:",
+        ].concat(generatedProgramLines),
+        visual: {
+          type: "tree",
+          data: {
+            query: termToString(query),
+            specification: entry.label,
+            generatedProgram,
+            generatedProgramLines,
+            sampleTrace: {
+              list: sampleTrace.list,
+              biggest: sampleTrace.biggest,
+              comparisons: sampleTrace.comparisons,
+            },
+            proofTrees: [sampleTrace.tree],
+            solutions,
+            compression: null,
+          },
+        },
+      };
+    }
+
+    function parseQueryWithSpecRequest(querySource) {
+      const rawSpecificationText = normalizeQuerySourceText(querySource);
+      const rawSpecificationRequest = detectSpecToAlgorithmRequest({
+        type: "atom",
+        value: rawSpecificationText,
+      });
+
+      if (rawSpecificationRequest) {
+        return {
+          query: {
+            type: "atom",
+            value: stripTrailingSentencePeriod(rawSpecificationRequest.entry.label),
+          },
+          request: rawSpecificationRequest,
+        };
+      }
+
       const query = parseQuery(querySource);
+      return {
+        query,
+        request: detectSpecToAlgorithmRequest(query),
+      };
+    }
+
+    function resolve(programSource, querySource) {
+      const { query, request: specToAlgorithmRequest } = parseQueryWithSpecRequest(querySource);
       const queryVariables = collectQueryVariables(query);
+
+      if (specToAlgorithmRequest) {
+        return resolveSpecToAlgorithm(query, specToAlgorithmRequest);
+      }
 
       if (
         query.type === "compound" &&
