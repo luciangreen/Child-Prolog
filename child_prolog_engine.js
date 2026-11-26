@@ -178,6 +178,21 @@
           };
         }
 
+        // Comparisons and equality, written with spaces around them.
+        for (const op of [" =:= ", " =\\= ", " >= ", " =< ", " \\= ", " < ", " = "]) {
+          const opIndex = findTopLevelWord(text, op);
+          if (opIndex !== -1) {
+            return {
+              type: "compound",
+              functor: op.trim(),
+              args: [
+                parseTerm(text.slice(0, opIndex)),
+                parseTerm(text.slice(opIndex + op.length)),
+              ],
+            };
+          }
+        }
+
         const greaterThanIndex = findTopLevelWord(text, " > ");
         if (greaterThanIndex !== -1) {
           return {
@@ -210,6 +225,18 @@
             args: [
               parseTerm(text.slice(0, minusIndex)),
               parseTerm(text.slice(minusIndex + 1)),
+            ],
+          };
+        }
+
+        const timesIndex = findTopLevelCharFromRight(text, "*");
+        if (timesIndex !== -1) {
+          return {
+            type: "compound",
+            functor: "*",
+            args: [
+              parseTerm(text.slice(0, timesIndex)),
+              parseTerm(text.slice(timesIndex + 1)),
             ],
           };
         }
@@ -265,7 +292,29 @@
     function parseQuery(source) {
       const trimmed = source.trim().replace(/^\?\-\s*/, "").replace(/^query:\s*/i, "");
       const normalized = trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
-      return createParser().parseTerm(normalized);
+      if (findTopLevelText(normalized, ":-") !== -1) {
+        const error = new Error("That looks like a rule. Put rules in the program, and ask a question in the query box.");
+        error.childMessage = true;
+        throw error;
+      }
+      const parser = createParser();
+      // "p(X), X > 1" asks for both goals: a conjunction, written ','(...).
+      const parts = splitTopLevel(normalized, ",");
+      if (parts.length > 1) {
+        return { type: "compound", functor: ",", args: parts.map(parser.parseTerm) };
+      }
+      return parser.parseTerm(normalized);
+    }
+
+    function findTopLevelText(text, target) {
+      let depth = 0;
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        if (char === "(" || char === "[") depth += 1;
+        else if (char === ")" || char === "]") depth -= 1;
+        else if (depth === 0 && text.startsWith(target, index)) return index;
+      }
+      return -1;
     }
 
     function freshenTerm(term, suffix) {
@@ -310,7 +359,23 @@
       return { ...bindings };
     }
 
+    // The occurs check: X cannot be bound to a term that contains X, such as
+    // g(X), since that term would have to be infinitely deep.
+    function occursIn(variable, term, bindings) {
+      const resolved = dereference(term, bindings);
+      if (resolved.type === "var") return resolved.name === variable.name;
+      if (resolved.type === "compound") return resolved.args.some((arg) => occursIn(variable, arg, bindings));
+      if (resolved.type === "list") return resolved.items.some((item) => occursIn(variable, item, bindings));
+      return false;
+    }
+
     function bindVariable(variable, value, bindings) {
+      if (value.type === "var" && value.name === variable.name) {
+        return bindings;
+      }
+      if (value.type !== "var" && occursIn(variable, value, bindings)) {
+        return null;
+      }
       const nextBindings = cloneBindings(bindings);
       nextBindings[variable.name] = value;
       return nextBindings;
@@ -410,6 +475,14 @@
         return `[${term.items.map(termToString).join(",")}]`;
       }
 
+      if (term.functor === "," ) {
+        return term.args.map(termToString).join(", ");
+      }
+
+      if (term.args.length === 2 && ["=", "\\=", "<", ">", ">=", "=<", "=:=", "=\\=", "is"].includes(term.functor)) {
+        return `${termToString(term.args[0])} ${term.functor} ${termToString(term.args[1])}`;
+      }
+
       return `${term.functor}(${term.args.map(termToString).join(",")})`;
     }
 
@@ -482,6 +555,10 @@
 
         if (resolved.functor === "-") {
           return left - right;
+        }
+
+        if (resolved.functor === "*") {
+          return left * right;
         }
       }
 
@@ -1628,6 +1705,10 @@
       const fallbackSteps = [];
       let clauseCounter = 0;
       let visitedNodes = 0;
+      // Why a proof might not be found, so the answer can say so.
+      const unknownPredicates = new Set();
+      const notWorkedOut = new Set();
+      let stoppedEarly = false;
 
       function prove(goals, bindings, steps, depth) {
         if (solutions.length >= settings.maxSolutions || visitedNodes >= settings.maxNodes) {
@@ -1636,6 +1717,7 @@
 
         if (depth > settings.maxDepth) {
           fallbackSteps.push("Stopped because the proof went too deep.");
+          stoppedEarly = true;
           return [];
         }
 
@@ -1653,9 +1735,61 @@
         const currentGoalText = termToString(currentGoal);
         const localSolutions = [];
 
+        // "a, b" in a query: prove a, then b.
+        if (currentGoal.type === "compound" && currentGoal.functor === ",") {
+          return prove(currentGoal.args.concat(remainingGoals), bindings, steps, depth);
+        }
+
+        const continueWith = (nextBindings, stepText) => {
+          prove(remainingGoals, nextBindings, steps.concat(stepText), depth + 1).forEach((solution) => {
+            localSolutions.push({
+              bindings: solution.bindings,
+              steps: solution.steps,
+              tree: { goal: stepText, children: [solution.tree] },
+            });
+          });
+          return localSolutions;
+        };
+
+        if (currentGoal.type === "compound" && currentGoal.args.length === 2 && currentGoal.functor === "=") {
+          const nextBindings = unify(currentGoal.args[0], currentGoal.args[1], bindings);
+          if (!nextBindings) {
+            return localSolutions;
+          }
+          const after = substitute(currentGoal.args[0], nextBindings);
+          return continueWith(nextBindings, `Make ${termToString(currentGoal.args[0])} and ${termToString(currentGoal.args[1])} the same: ${termToString(after)}.`);
+        }
+
+        if (currentGoal.type === "compound" && currentGoal.args.length === 2 && currentGoal.functor === "\\=") {
+          if (unify(currentGoal.args[0], currentGoal.args[1], bindings)) {
+            return localSolutions;
+          }
+          return continueWith(bindings, `Check ${currentGoalText}: they cannot be made the same.`);
+        }
+
+        const comparisons = {
+          "<": (a, b) => a < b, ">=": (a, b) => a >= b, "=<": (a, b) => a <= b,
+          "=:=": (a, b) => a === b, "=\\=": (a, b) => a !== b,
+        };
+        if (currentGoal.type === "compound" && currentGoal.args.length === 2 && comparisons[currentGoal.functor]) {
+          const leftValue = evaluateArithmetic(currentGoal.args[0], bindings);
+          const rightValue = evaluateArithmetic(currentGoal.args[1], bindings);
+          if (leftValue === null || rightValue === null) {
+            notWorkedOut.add(termToString(currentGoal));
+            return localSolutions;
+          }
+          if (!comparisons[currentGoal.functor](leftValue, rightValue)) {
+            return localSolutions;
+          }
+          return continueWith(bindings, `Check ${currentGoalText}: ${leftValue} ${currentGoal.functor} ${rightValue} is true.`);
+        }
+
         if (currentGoal.type === "compound" && currentGoal.functor === ">" && currentGoal.args.length === 2) {
           const leftValue = evaluateArithmetic(currentGoal.args[0], bindings);
           const rightValue = evaluateArithmetic(currentGoal.args[1], bindings);
+          if (leftValue === null || rightValue === null) {
+            notWorkedOut.add(termToString(currentGoal));
+          }
           if (leftValue !== null && rightValue !== null && leftValue > rightValue) {
             const stepText = `Check ${currentGoalText}: ${leftValue} > ${rightValue} is true.`;
             const childSolutions = prove(remainingGoals, bindings, steps.concat(stepText), depth + 1);
@@ -1672,6 +1806,9 @@
 
         if (currentGoal.type === "compound" && currentGoal.functor === "is" && currentGoal.args.length === 2) {
           const computedValue = evaluateArithmetic(currentGoal.args[1], bindings);
+          if (computedValue === null) {
+            notWorkedOut.add(termToString(currentGoal.args[1]));
+          }
           if (computedValue !== null) {
             const nextBindings = unify(
               currentGoal.args[0],
@@ -1708,6 +1845,15 @@
             });
           }
           return localSolutions;
+        }
+
+        const goalName = currentGoal.type === "compound"
+          ? `${currentGoal.functor}/${currentGoal.args.length}`
+          : currentGoal.type === "atom" ? `${currentGoal.value}/0` : null;
+        if (goalName && !clauses.some((clause) =>
+              (clause.head.type === "compound" && `${clause.head.functor}/${clause.head.args.length}` === goalName) ||
+              (clause.head.type === "atom" && `${clause.head.value}/0` === goalName))) {
+          unknownPredicates.add(goalName);
         }
 
         clauses.forEach((clause) => {
@@ -1760,6 +1906,19 @@
       const hasVariables = queryVariables.size > 0;
 
       let answer = `No proof found for ${termToString(query)}.`;
+      let reason = "no_proof";
+      if (!uniqueSolutions.length) {
+        if (notWorkedOut.size) {
+          reason = "not_supported";
+          answer = `I do not know how to work out ${[...notWorkedOut][0]} yet, so I could not prove ${termToString(query)}.`;
+        } else if (stoppedEarly) {
+          reason = "stopped";
+          answer = `I stopped after many steps without proving ${termToString(query)}. The rules may go round in a loop.`;
+        } else if (unknownPredicates.size) {
+          reason = "unknown_predicate";
+          answer = `There are no facts or rules for ${[...unknownPredicates].join(", ")} yet, so I could not prove ${termToString(query)}.`;
+        }
+      }
       if (uniqueSolutions.length) {
         if (
           query.type === "compound" &&
@@ -1825,6 +1984,7 @@
         query: termToString(query),
         success: uniqueSolutions.length > 0,
         answer,
+        reason: uniqueSolutions.length > 0 ? "proved" : reason,
         solutions: uniqueSolutions.map((solution) => solution.bindings),
         steps: firstSolution ? firstSolution.steps.concat(stage2Steps, stage7Steps) : fallbackSteps,
         visual: {

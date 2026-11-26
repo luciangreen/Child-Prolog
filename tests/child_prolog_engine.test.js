@@ -186,3 +186,50 @@ can_enter(tower) :-
   assert.ok(result.visual.data.before.edges.some((edge) => edge.from === "garden" && edge.to === "cave"));
   assert.ok(result.visual.data.before.edges.some((edge) => edge.from === "cave" && edge.to === "tower"));
 });
+
+test("a query with a comma proves both goals", () => {
+  const engine = createEngine();
+  const result = engine.resolve("p(1). p(2). p(3).", "p(X), X > 1.");
+  assert.equal(result.success, true);
+  assert.deepEqual(result.solutions, [{ X: "2" }, { X: "3" }]);
+});
+
+test("equals, multiplication and comparisons are supported", () => {
+  const engine = createEngine();
+  assert.equal(engine.resolve("likes(mary, X) :- X = wine.", "likes(mary, wine).").success, true);
+  assert.deepEqual(engine.resolve("x(Y) :- Y is 2 * 3.", "x(Z).").solutions, [{ Z: "6" }]);
+  assert.deepEqual(engine.resolve("p(1). p(2). p(3).", "p(X), X =< 2.").solutions, [{ X: "1" }, { X: "2" }]);
+});
+
+test("an undefined predicate is named in the answer", () => {
+  const engine = createEngine();
+  const result = engine.resolve("p(a).", "q(a).");
+  assert.equal(result.success, false);
+  assert.equal(result.reason, "unknown_predicate");
+  assert.match(result.answer, /no facts or rules for q\/1/);
+});
+
+test("a loop is reported as stopping, not as false", () => {
+  const engine = createEngine();
+  const result = engine.resolve("loop(X) :- loop(X).", "loop(a).");
+  assert.equal(result.reason, "stopped");
+  assert.match(result.answer, /stopped after many steps/);
+});
+
+test("arithmetic it cannot work out is named", () => {
+  const engine = createEngine();
+  const result = engine.resolve("p(X) :- X is foo.", "p(Y).");
+  assert.equal(result.reason, "not_supported");
+  assert.match(result.answer, /do not know how to work out foo/);
+});
+
+test("the occurs check stops f(Y, g(Y)) instead of crashing", () => {
+  const engine = createEngine();
+  const result = engine.resolve("f(X, X).", "f(Y, g(Y)).");
+  assert.equal(result.success, false);
+});
+
+test("a rule typed as a query gets a helpful message", () => {
+  const engine = createEngine();
+  assert.throws(() => engine.resolve("p(1).", "p(X) :- q(X)."), /looks like a rule/);
+});

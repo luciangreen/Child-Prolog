@@ -119,3 +119,14 @@ Stage 8 semantic visualization modes:
 cd /path/to/Child-Prolog
 npm test
 ```
+
+## Clear answers
+
+- Queries can join goals with commas: `p(X), X > 1.`
+- `=`, `\=`, `*`, `<`, `>`, `>=`, `=<`, `=:=` and `=\=` are supported.
+- When no proof is found, the answer says why, and `result.reason` names it:
+  `not_supported` (something it cannot work out yet), `stopped` (it gave up
+  after many steps, perhaps a loop), `unknown_predicate` (no facts or rules
+  for a name), or `no_proof`.
+- The occurs check stops goals such as `f(Y, g(Y))` from crashing the page.
+- A rule typed in the query box gets a message saying where rules go.
