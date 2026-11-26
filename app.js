@@ -34,7 +34,20 @@ sum_to(N,Sum) :-
     queryInput.value = exampleQuery;
 
     runButton.addEventListener("click", function () {
-      lastResult = engine.resolve(programInput.value, queryInput.value);
+      try {
+        lastResult = engine.resolve(programInput.value, queryInput.value);
+      } catch (error) {
+        // Show a reading problem as an answer instead of stopping the page.
+        lastResult = {
+          query: queryInput.value,
+          success: false,
+          answer: error.childMessage ? error.message : `I could not read that: ${error.message}`,
+          reason: "could_not_read",
+          solutions: [],
+          steps: [],
+          visual: { type: "tree", data: {} },
+        };
+      }
       renderLatestResult();
     });
 
